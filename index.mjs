@@ -17,7 +17,11 @@ const pool = mysql.createPool({
 });
 
 app.get('/', (req, res) => {
-   res.render('login.ejs')
+   res.render('home.ejs')
+});
+
+app.get('/login', (req, res) => {
+    res.render('login.ejs')
 });
 
 app.get('/signup', (req, res) => {
@@ -34,6 +38,14 @@ app.get('/adding', (req, res) => {
 
 app.get('/searching', (req, res) => {
     res.render('searching.ejs')
+});
+
+app.get('/profile', (req, res) => {
+    res.render('profile.ejs')
+});
+
+app.get('/discover', (req, res) => {
+    res.render('discover.ejs')
 });
 
 app.get('/deleting', (req, res) => {
