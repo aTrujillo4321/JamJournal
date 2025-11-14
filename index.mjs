@@ -22,6 +22,13 @@ app.use((req, res, next) => {
   next();
 });
 
+const isLoggedIn = (req, res, next) => {
+  if (!req.session.user) {
+    return res.redirect('/auth/login');
+  }
+  next();
+};
+
 //log into PHP to see database with these credentials
 const pool = mysql.createPool({
     host: "s54ham9zz83czkff.cbetxkdyhwsb.us-east-1.rds.amazonaws.com",
@@ -100,6 +107,41 @@ app.post('/auth/signup', async(req, res) => {
     return res.redirect('/');
 });
 
+app.post('/reviews', isLoggedIn, async (req, res) => {
+    const { title, artist, genre, rating, comment } = req.body;
+    const userId = req.session.user.id;
+
+    if (!title || !artist || !rating) {
+        return res.status(400).render('home.ejs', {
+            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], discover: []
+        });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        let [existingSong] = await conn.query('SELECT id FROM songs WHERE Title = ? AND Artist = ? LIMIT 1', [title, artist]);
+        let songId;
+
+        if (existingSong.length === 0) {
+            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre) VALUES (?, ?, ?)', [title, artist, genre || null]);
+            songId = songInsert.insertId;
+        }
+        else {
+            songId = existingSong[0].id;
+        }
+
+        await conn.query('INSERT INTO reviews (User_id, Song_id, Rating, Comment, Date_reviewed) VALUES (?, ?, ?, ?, NOW())', [userId, songId, rating, comment || null]);
+        await conn.commit();
+        res.redirect('/');
+    } 
+    catch (err) {
+        await conn.rollback();
+        console.error("Error adding song or review:", err);
+        res.status(500).render('home.ejs', {error: 'An error occurred. Try again!', friendsFeed: [], discover: []});
+    }
+});
+
 app.get('/library', (req, res) => {
     res.render('library.ejs')
 });
@@ -124,6 +166,6 @@ app.get('/deleting', (req, res) => {
     res.render('deleting.ejs')
 });
 
-app.listen(3000, ()=>{
+app.listen(3000, ()=> {
     console.log("Express server running")
 });
