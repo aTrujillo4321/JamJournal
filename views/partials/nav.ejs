@@ -1,0 +1,39 @@
+<nav>
+    <div class="container">
+        <div class="row align-items-center py-3">
+            <!-- site title -->
+            <div class="col-auto">
+                <a href="/" class="fw-bold fs-4 text-decoration-none">Jam Journal</a>
+            </div>
+
+            <!-- search (only for logged-in users) -->
+            <div class="col">
+                <% if (user) { %>
+                    <form class="d-flex justify-content-end" action="/search" method="get">
+                        <input type="search" name="q" class="form-control form-control-sm me-2"
+                            placeholder="Search iTunes…" />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Search</button>
+                    </form>
+                <% } %>
+            </div>
+
+            <!-- right side links -->
+            <div class="col-auto">
+                <ul class="list-inline mb-0">
+                    <li class="list-inline-item"><a href="/discover">Discover</a></li>
+                    <% if (user) { %>
+                        <li class="list-inline-item"><a href="/profile">Profile</a></li>
+                        <li class="list-inline-item">
+                            <form action="/auth/logout" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-link p-0">Logout</button>
+                            </form>
+                        </li>
+                    <% } else { %>
+                            <li class="list-inline-item"><a href="/auth/login">Login</a></li>
+                            <li class="list-inline-item"><a href="/auth/signup">Sign Up</a></li>
+                        <% } %>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
