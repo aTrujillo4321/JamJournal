@@ -142,16 +142,103 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
     }
 });
 
+app.get('/lyrics', async(req, res) => {
+    let artist = req.query.artist;
+    let title = req.query.title;
+
+    if(!artist || !title){
+        return res.render('lyrics.ejs',{
+            artist:"",
+            title:"",
+            lyrics:null,
+            error:null
+        });
+    }
+    try{
+        let url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+        let response = await fetch(url);
+        let data = await response.json();
+
+        // This would only run if the lyrics aren't found
+        if(!data.lyrics){
+            return res.render('lyrics.ejs',{
+                artist,
+                title,
+                lyrics:null,
+                error:"Lyrics not found."
+            });
+        }
+
+        // Successfully runs
+        return res.render('lyrics.ejs',{
+            artist,
+            title,
+            lyrics:data.lyrics,
+            error:null
+        });
+
+    }catch(err){
+        console.error("Lyrics API Error:",err);
+
+        return res.render('lyrics.ejs',{
+            artist,
+            title,
+            lyrics:null,
+            error:"Error getting lyrics"
+        });
+    }
+   // res.render('library.ejs')
+});
+
+app.get('/searching', async(req, res) => {
+    let term = (req.query.q || "").trim();
+
+    if(!term){
+        return res.render('searching.ejs',{
+            term:"",
+            results: [],
+            error:null
+        });
+    }
+
+    try{
+        let url = 
+        "https://itunes.apple.com/search"
+            + "?term=" + encodeURIComponent(term)
+            + "&media=music"
+            + "&entity=song"
+            + "&limit=20"
+            + "&country=US";
+        let response = await fetch(url);
+        let data = await response.json();
+
+        let results = data.results || [];
+
+        return res.render('searching.ejs',{
+            term,
+            results,
+            error: results.length? null : "No songs found"
+        });
+    }catch (err){
+        console.error("iTunes search error:",err);
+
+        return res.render('searching.ejs',{
+            term,
+            results: [],
+            error: "Error getting search results from iTunes"
+        });
+    }
+    //res.render('searching.ejs')
+});
+
+
+
 app.get('/library', (req, res) => {
     res.render('library.ejs')
 });
 
 app.get('/adding', (req, res) => {
     res.render('adding.ejs')
-});
-
-app.get('/searching', (req, res) => {
-    res.render('searching.ejs')
 });
 
 app.get('/profile', (req, res) => {
