@@ -233,8 +233,15 @@ app.get('/searching', async(req, res) => {
 
 
 
-app.get('/library', (req, res) => {
-    res.render('library.ejs')
+app.get('/library', async(req, res) => {
+    let sql = `SELECT *
+               FROM reviews
+               JOIN songs ON reviews.song_id = songs.id 
+               WHERE user_id LIKE ?`;
+    let sqlParams = req.session.user.id;
+    const [rows] = await pool.query(sql, [sqlParams]);
+    //console.log(rows);
+    res.render('library.ejs', {rows})
 });
 
 app.get('/adding', (req, res) => {

@@ -11,6 +11,24 @@
 
     <%- include('partials/nav') %>
 
+    <main class="container my-4">
+
+      <h1 class="mb-4"><%= user.username %>'s library</h1>
+
+      <br>
+
+      <% for (let row of rows) { %>
+        Artist: <%= row.artist %><br>
+        Title: <%= row.title %><br>
+        Genre: <%= row.genre %><br>
+        My comment: <%= row.comment %><br>
+        Rating: <%= row.rating %><br>
+
+      <% } %>
+
+      
+
+    </main>
 
     <%- include('partials/footer') %>
 </body>
