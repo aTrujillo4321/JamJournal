@@ -1,40 +1,42 @@
-<nav>
-    <div class="container">
-        <div class="row align-items-center py-3">
-            <!-- site title -->
-            <div class="col-auto">
-                <a href="/" class="fw-bold fs-4 text-decoration-none">Jam Journal</a>
-            </div>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <!-- Brand / Title -->
+    <a class="navbar-brand fw-bold fs-4" href="/">Jam Journal</a>
 
-            <!-- search (only for logged-in users) -->
-            <div class="col">
-                <% if (user) { %>
-                    <form class="d-flex justify-content-end" action="/searching" method="get">
-                        <input type="search" name="q" class="form-control form-control-sm me-2"
-                            placeholder="Search iTunes…" />
-                        <button type="submit" class="btn btn-sm btn-outline-secondary">Search</button>
-                    </form>
-                <% } %>
-            </div>
+    <!-- Hamburger menu for small screens -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+      aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
 
-            <!-- right side links -->
-            <div class="col-auto">
-                <ul class="list-inline mb-0">
-                    <li class="list-inline-item"><a class="text-decoration-none" href="/discover">Discover</a></li>
-                    <li class="list-inline-itme"><a class="text-decoration-none" href="/lyrics">Lyrics</a></li>
-                    <% if (user) { %>
-                        <li class="list-inline-item"><a class="text-decoration-none" href="/profile">Profile</a></li>
-                        <li class="list-inline-item">
-                            <form action="/auth/logout" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-link p-0">Logout</button>
-                            </form>
-                        </li>
-                    <% } else { %>
-                            <li class="list-inline-item"><a class="text-decoration-none" href="/auth/login">Login</a></li>
-                            <li class="list-inline-item"><a class="text-decoration-none" href="/auth/signup">Sign Up</a></li>
-                        <% } %>
-                </ul>
-            </div>
-        </div>
+    <!-- Collapsible area -->
+    <div class="collapse navbar-collapse" id="mainNav">
+
+      <!-- Search bar (only when logged in) -->
+      <% if (user) { %>
+      <form class="d-flex ms-lg-3 my-3 my-lg-0 flex-grow-1" action="/searching" method="get" role="search">
+        <input type="search" name="q" class="form-control me-2" placeholder="Search iTunes…" />
+        <button type="submit" class="btn btn-outline-light">Search</button>
+      </form>
+      <% } %>
+
+      <!-- Right-side nav links -->
+      <ul class="navbar-nav ms-auto align-items-center">
+        <li class="nav-item"><a class="nav-link" href="/discover">Discover</a></li>
+        <li class="nav-item"><a class="nav-link" href="/lyrics">Lyrics</a></li>
+
+        <% if (user) { %>
+          <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
+          <li class="nav-item">
+            <form action="/auth/logout" method="post" class="d-inline">
+              <button type="submit" class="btn btn-link nav-link p-0 m-0 align-baseline">Logout</button>
+            </form>
+          </li>
+        <% } else { %>
+          <li class="nav-item"><a class="nav-link" href="/auth/login">Login</a></li>
+          <li class="nav-item"><a class="nav-link" href="/auth/signup">Sign Up</a></li>
+        <% } %>
+      </ul>
     </div>
+  </div>
 </nav>
