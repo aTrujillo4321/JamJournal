@@ -231,8 +231,6 @@ app.get('/searching', async(req, res) => {
     //res.render('searching.ejs')
 });
 
-
-
 app.get('/library', (req, res) => {
     res.render('library.ejs')
 });
@@ -245,8 +243,39 @@ app.get('/profile', (req, res) => {
     res.render('profile.ejs')
 });
 
-app.get('/discover', (req, res) => {
-    res.render('discover.ejs')
+app.get('/discover', async (req, res) => {
+    const genres = ['Pop', 'Rock', 'Metal', 'Rap', 'Electronic', 'Country', 'R&B', 'Jazz'];
+    const fetchGenre = async (genre) => {
+        try {
+            const url = "https://itunes.apple.com/search"
+            + "?term=" + encodeURIComponent(genre)
+            + "&media=music"
+            + "&entity=song"
+            + "&limit=50"
+            + "&country=US";
+            const response = await fetch(url);
+            const data = await response.json();
+            let songs = data.results || [];
+
+            for (let i = songs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [songs[i], songs[j]] = [songs[j], songs[i]];
+            }
+            return {
+                genre: genre,
+                songs: songs.slice(0, 10)
+            };
+        } catch (err) {
+            console.error(`Error fetching ${genre}:`, err);
+            return { genre: genre, songs: [] };
+        }
+    };
+
+    const discoverData = await Promise.all(genres.map(fetchGenre));
+    res.render('discover.ejs', {
+        discoverData,
+        user: req.session.user || null
+    });
 });
 
 app.get('/deleting', (req, res) => {
