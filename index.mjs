@@ -248,7 +248,14 @@ app.get('/adding', (req, res) => {
     res.render('adding.ejs')
 });
 
-app.get('/profile', (req, res) => {
+app.get('/profile', async(req, res) => {
+    // let sql = `SELECT *
+    //            FROM reviews
+    //            JOIN songs ON reviews.song_id = songs.id 
+    //            WHERE user_id LIKE ?`;
+    // let sqlParams = req.session.user.id;
+    // const [rows] = await pool.query(sql, [sqlParams]);
+    // console.log(rows);
     res.render('profile.ejs')
 });
 
