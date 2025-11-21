@@ -41,8 +41,20 @@ const pool = mysql.createPool({
 
 //haven't implemented APIs for discover section 
 //haven't made friends section
-app.get('/', (req, res) => {
-    res.render('home.ejs', {friendsFeed:[], discover:[] });
+app.get('/', async (req, res) => {
+    let myReviews = [];
+    if (req.session.user) {
+        const userId = req.session.user.id;
+        const sql = `
+        SELECT reviews.id as reviewId, songs.Title, songs.Artist
+        FROM reviews
+        JOIN songs ON reviews.Song_id = songs.id
+        WHERE reviews.User_id = ?`;
+
+        const [rows] = await pool.query(sql, [userId]);
+        myReviews = rows;
+    }
+    res.render('home.ejs', {friendsFeed:[], discover:[], myReviews: myReviews });
 });
 
 
@@ -139,6 +151,23 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
         await conn.rollback();
         console.error("Error adding song or review:", err);
         res.status(500).render('home.ejs', {error: 'An error occurred. Try again!', friendsFeed: [], discover: []});
+    }
+});
+
+app.post('/reviews/delete', isLoggedIn, async (req, res) => {
+    const { reviewId } = req.body;
+    if (!reviewId) {
+        return res.redirect('/');
+    }
+
+    try {
+        await pool.query('DELETE FROM reviews WHERE id = ? AND User_id = ?',
+        [reviewId, req.session.user.id]);
+        res.redirect('/');
+    }
+    catch (err) {
+        console.error("Error deleting review:", err);
+        res.status(500).send("Error deleting review");
     }
 });
 

@@ -23,8 +23,18 @@
             data-bs-target="#addSongModal">
             Add Song +
           </button>
+
+          <button
+            type="button"
+            class="btn btn-danger ms-2"
+            data-bs-toggle="modal"
+            data-bs-target="#deleteSongModal">
+            Delete Song -
+          </button>
         </div>
       </div>
+
+
 
       <!-- FRIENDS’ REVIEWS -->
       <h2 class="mb-3">Friends’ Reviews</h2>
@@ -116,6 +126,48 @@
                 <button type="submit" class="btn btn-primary">Save</button>
               </div>
             </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (user) { %>
+    <div class="modal fade" id="deleteSongModal" tabindex="-1"
+        aria-labelledby="deleteSongModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 id="deleteSongModalLabel" class="modal-title">Delete a Song</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body">
+            <% if (typeof myReviews !== 'undefined' && myReviews.length > 0) { %>
+
+              <form action="/reviews/delete" method="post">
+                <div class="mb-3">
+                  <label class="form-label">Select a song to remove:</label>
+                  <select name="reviewId" class="form-select" required>
+                    <option value="" disabled selected>-- Choose a song --</option>
+                    <% myReviews.forEach(function(review) { %>
+                      <option value="<%= review.reviewId %>"><%= review.Title %> by <%= review.Artist %></option>
+                    <% }); %>
+                  </select>
+                </div>
+
+                <div class="alert alert-warning text-small">
+                  This song will be gone you know ...
+                </div>
+                <div class="text-end">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+              </form>
+
+            <% } else { %>
+              <p class="text-center text-muted">You haven't added any songs yet.</p>
+            <% } %>
           </div>
         </div>
       </div>
