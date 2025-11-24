@@ -5,28 +5,28 @@ import session from 'express-session';
 const app = express();
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-app.use(express.urlencoded({extended:true}));
+app.use(express.urlencoded({ extended: true }));
 
 app.use(
-  session({
-    secret: 'dev-secret-change-me',   // TODO: move to env var in prod
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 8 }, // 8h
-  })
+    session({
+        secret: 'dev-secret-change-me',   // TODO: move to env var in prod
+        resave: false,
+        saveUninitialized: false,
+        cookie: { maxAge: 1000 * 60 * 60 * 8 }, // 8h
+    })
 );
 
 // make `user` available in all EJS views as res.locals.user
 app.use((req, res, next) => {
-  res.locals.user = req.session.user || null;
-  next();
+    res.locals.user = req.session.user || null;
+    next();
 });
 
 const isLoggedIn = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/auth/login');
-  }
-  next();
+    if (!req.session.user) {
+        return res.redirect('/auth/login');
+    }
+    next();
 };
 
 //log into PHP to see database with these credentials
@@ -42,7 +42,7 @@ const pool = mysql.createPool({
 //haven't implemented APIs for discover section 
 //haven't made friends section
 app.get('/', (req, res) => {
-    res.render('home.ejs', {friendsFeed:[], discover:[] });
+    res.render('home.ejs', { friendsFeed: [], discover: [] });
 });
 
 
@@ -51,8 +51,8 @@ app.get('/auth/login', (req, res) => {
     res.render('login.ejs')
 });
 
-app.post('/auth/login', async(req,res) => {
-    const {username, password} = req.body;
+app.post('/auth/login', async (req, res) => {
+    const { username, password } = req.body;
     let sql = `SELECT id, username FROM users WHERE username = ? AND password = ? LIMIT 1`;
     const [rows] = await pool.query(sql, [username, password]);
 
@@ -62,7 +62,7 @@ app.post('/auth/login', async(req,res) => {
     }
 
     //if failed
-    res.status(401).render('login.ejs', {error: 'Invalid Credentials'});
+    res.status(401).render('login.ejs', { error: 'Invalid Credentials' });
 })
 
 //----- for Logout button ------
@@ -75,35 +75,35 @@ app.get('/auth/signup', (req, res) => {
     res.render('signup.ejs')
 });
 
-app.post('/auth/signup', async(req, res) => {
-    const {username, password, confirmPass} = req.body;
+app.post('/auth/signup', async (req, res) => {
+    const { username, password, confirmPass } = req.body;
 
     //check all fields filled
-    if(!username || !password || !confirmPass){
-        return res.status(400).render('signup.ejs', {error: 'All fields are required.'});
-    }
-    
-    //check pass and confirmPass match
-    if(password != confirmPass){
-        return res.status(400).render('signup.ejs', {error: 'Passwords do not match.'});
+    if (!username || !password || !confirmPass) {
+        return res.status(400).render('signup.ejs', { error: 'All fields are required.' });
     }
 
-    if(password.length < 6){
-        return res.status(400).render('signup.ejs', {error:'Password must be at least 6 characters.'});
+    //check pass and confirmPass match
+    if (password != confirmPass) {
+        return res.status(400).render('signup.ejs', { error: 'Passwords do not match.' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).render('signup.ejs', { error: 'Password must be at least 6 characters.' });
     }
 
     //check if username is available
     let sql = `SELECT id FROM users WHERE username = ?`;
-    const[exists] = await pool.query(sql, [username]);
-    if(exists.length){ //if there is a length to exists that means it exists
-        return res.status(409).render('signup.ejs', {error: 'Username is already taken.'});
+    const [exists] = await pool.query(sql, [username]);
+    if (exists.length) { //if there is a length to exists that means it exists
+        return res.status(409).render('signup.ejs', { error: 'Username is already taken.' });
     }
 
     let insert = `INSERT INTO users (username, password, date_joined) VALUES (?, ?, NOW())`;
     const [result] = await pool.query(insert, [username, password]);
 
     //automatically log in after sign up
-    req.session.user = {id: result.insertId, username};
+    req.session.user = { id: result.insertId, username };
     return res.redirect('/');
 });
 
@@ -124,7 +124,7 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
         let songId;
 
         if (existingSong.length === 0) {
-            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre) VALUES (?, ?, ?)', [title, artist, genre || null]);
+            const [songInsert] = await conn.query('INSERT INTO songs (user_id, Title, Artist, Genre) VALUES (?, ?, ?, ?)', [userId, title, artist, genre || null]);
             songId = songInsert.insertId;
         }
         else {
@@ -134,76 +134,76 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
         await conn.query('INSERT INTO reviews (User_id, Song_id, Rating, Comment, Date_reviewed) VALUES (?, ?, ?, ?, NOW())', [userId, songId, rating, comment || null]);
         await conn.commit();
         res.redirect('/');
-    } 
+    }
     catch (err) {
         await conn.rollback();
         console.error("Error adding song or review:", err);
-        res.status(500).render('home.ejs', {error: 'An error occurred. Try again!', friendsFeed: [], discover: []});
+        res.status(500).render('home.ejs', { error: 'An error occurred. Try again!', friendsFeed: [], discover: [] });
     }
 });
 
-app.get('/lyrics', async(req, res) => {
+app.get('/lyrics', async (req, res) => {
     let artist = req.query.artist;
     let title = req.query.title;
 
-    if(!artist || !title){
-        return res.render('lyrics.ejs',{
-            artist:"",
-            title:"",
-            lyrics:null,
-            error:null
+    if (!artist || !title) {
+        return res.render('lyrics.ejs', {
+            artist: "",
+            title: "",
+            lyrics: null,
+            error: null
         });
     }
-    try{
+    try {
         let url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
         let response = await fetch(url);
         let data = await response.json();
 
         // This would only run if the lyrics aren't found
-        if(!data.lyrics){
-            return res.render('lyrics.ejs',{
+        if (!data.lyrics) {
+            return res.render('lyrics.ejs', {
                 artist,
                 title,
-                lyrics:null,
-                error:"Lyrics not found."
+                lyrics: null,
+                error: "Lyrics not found."
             });
         }
 
         // Successfully runs
-        return res.render('lyrics.ejs',{
+        return res.render('lyrics.ejs', {
             artist,
             title,
-            lyrics:data.lyrics,
-            error:null
+            lyrics: data.lyrics,
+            error: null
         });
 
-    }catch(err){
-        console.error("Lyrics API Error:",err);
+    } catch (err) {
+        console.error("Lyrics API Error:", err);
 
-        return res.render('lyrics.ejs',{
+        return res.render('lyrics.ejs', {
             artist,
             title,
-            lyrics:null,
-            error:"Error getting lyrics"
+            lyrics: null,
+            error: "Error getting lyrics"
         });
     }
-   // res.render('library.ejs')
+    // res.render('library.ejs')
 });
 
-app.get('/searching', async(req, res) => {
+app.get('/searching', async (req, res) => {
     let term = (req.query.q || "").trim();
 
-    if(!term){
-        return res.render('searching.ejs',{
-            term:"",
+    if (!term) {
+        return res.render('searching.ejs', {
+            term: "",
             results: [],
-            error:null
+            error: null
         });
     }
 
-    try{
-        let url = 
-        "https://itunes.apple.com/search"
+    try {
+        let url =
+            "https://itunes.apple.com/search"
             + "?term=" + encodeURIComponent(term)
             + "&media=music"
             + "&entity=song"
@@ -214,15 +214,15 @@ app.get('/searching', async(req, res) => {
 
         let results = data.results || [];
 
-        return res.render('searching.ejs',{
+        return res.render('searching.ejs', {
             term,
             results,
-            error: results.length? null : "No songs found"
+            error: results.length ? null : "No songs found"
         });
-    }catch (err){
-        console.error("iTunes search error:",err);
+    } catch (err) {
+        console.error("iTunes search error:", err);
 
-        return res.render('searching.ejs',{
+        return res.render('searching.ejs', {
             term,
             results: [],
             error: "Error getting search results from iTunes"
@@ -233,7 +233,7 @@ app.get('/searching', async(req, res) => {
 
 
 
-app.get('/library', async(req, res) => {
+app.get('/library', async (req, res) => {
     let sql = `SELECT *
                FROM reviews
                JOIN songs ON reviews.song_id = songs.id 
@@ -241,14 +241,14 @@ app.get('/library', async(req, res) => {
     let sqlParams = req.session.user.id;
     const [rows] = await pool.query(sql, [sqlParams]);
     //console.log(rows);
-    res.render('library.ejs', {rows})
+    res.render('library.ejs', { rows })
 });
 
 app.get('/adding', (req, res) => {
     res.render('adding.ejs')
 });
 
-app.get('/profile', async(req, res) => {
+app.get('/profile', async (req, res) => {
     // let sql = `SELECT *
     //            FROM reviews
     //            JOIN songs ON reviews.song_id = songs.id 
@@ -259,6 +259,25 @@ app.get('/profile', async(req, res) => {
     res.render('profile.ejs')
 });
 
+// for delete account
+app.post('/delete-account', (req, res) => {
+    const userId = req.session.user.id; // logged-in user's ID
+    const sql1 = 'DELETE FROM songs WHERE user_id = ?';
+    const sql2 = 'DELETE FROM reviews WHERE user_id = ?';
+    const sql3 = 'DELETE FROM users WHERE id = ?';
+
+    db.query(sql1, [userId], (err) => {
+        if (err) throw err;
+        db.query(sql2, [userId], (err) => {
+            if (err) throw err;
+            db.query(sql3, [userId], (err) => {
+                if (err) throw err;
+                req.session.destroy(() => res.redirect('/'));
+            });
+        });
+    });
+});
+
 app.get('/discover', (req, res) => {
     res.render('discover.ejs')
 });
@@ -267,6 +286,6 @@ app.get('/deleting', (req, res) => {
     res.render('deleting.ejs')
 });
 
-app.listen(3000, ()=> {
+app.listen(3000, () => {
     console.log("Express server running")
 });
