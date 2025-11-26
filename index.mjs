@@ -186,6 +186,10 @@ app.get('/lyrics', async(req, res) => {
     try{
         let url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
         let response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`API returned status: ${response.status}`);
+        }
         let data = await response.json();
 
         // This would only run if the lyrics aren't found
