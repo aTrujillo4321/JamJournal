@@ -259,8 +259,27 @@ app.get('/profile', async (req, res) => {
     res.render('profile.ejs')
 });
 
+app.post('/changePassword', async (req, res) => {
+    const { cPassword, nPassword } = req.body;
+    const userId = req.session.user.id;
+    const uPassword = req.session.user.password;
+    
+    if (uPassword != cPassword){
+        return res.status(400).render('profile.ejs', { error: 'Current password is incorrect.' });
+    }
+    
+    if (nPassword.length < 6){
+        return res.status(400).render('profile.ejs', { error: 'Password must be at least 6 characters.' });
+    }
+
+    const sql = 'UPDATE users SET password = ? WHERE id = ?';
+    db.query(sql, [nPassword, userId]);
+
+    req.session.destroy(() => res.redirect('/'));
+});
+
 // for delete account
-app.post('/delete-account', (req, res) => {
+app.post('/deleteAccount', (req, res) => {
     const userId = req.session.user.id; // logged-in user's ID
     const sql1 = 'DELETE FROM songs WHERE user_id = ?';
     const sql2 = 'DELETE FROM reviews WHERE user_id = ?';
