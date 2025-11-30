@@ -296,7 +296,7 @@ app.get('/discover', async (req, res) => {
             }
             return {
                 genre: genre,
-                songs: songs.slice(0, 7)
+                songs: songs.slice(0, 10)
             };
         } catch (err) {
             console.error(`Error fetching ${genre}:`, err);
