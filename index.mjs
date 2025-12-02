@@ -89,6 +89,7 @@ app.get('/auth/signup', (req, res) => {
 
 app.post('/auth/signup', async(req, res) => {
     const {username, password, confirmPass} = req.body;
+    const FIRST_FRIEND = 1;
 
     //check all fields filled
     if(!username || !password || !confirmPass){
@@ -113,9 +114,17 @@ app.post('/auth/signup', async(req, res) => {
 
     let insert = `INSERT INTO users (username, password, date_joined) VALUES (?, ?, NOW())`;
     const [result] = await pool.query(insert, [username, password]);
+    const newUserId = result.insertId;
+
+    //auto friend w/ lesly
+    let sqlFriend = `INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, NOW())`;
+    const[friend] = await pool.query(sqlFriend, [newUserId, FIRST_FRIEND]);
+    
+    let sqlFriendBack = `INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?,?, NOW())`;
+    const[friendBack] = await pool.query(sqlFriendBack, [FIRST_FRIEND, newUserId]);
 
     //automatically log in after sign up
-    req.session.user = {id: result.insertId, username};
+    req.session.user = {id: newUserId, username};
     return res.redirect('/');
 });
 
@@ -313,6 +322,116 @@ app.get('/discover', async (req, res) => {
 
 app.get('/deleting', (req, res) => {
     res.render('deleting.ejs')
+});
+
+//===========================FOLLOWS PAGE==================================
+app.get('/follows', async(req, res) => {
+    //if user not logged in and tries to access follows page
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const searchTerm = (req.query.q || '').trim();
+
+    try{
+        //people you follow
+        let sql = `SELECT u.id, u.username, f.created_at
+                    FROM follows f
+                    JOIN users u ON u.id = f.followed_id
+                    WHERE f.follower_id = ?
+                    ORDER BY u.username`;
+        const[following] = await pool.query(sql, [userId]);
+
+        //people who fooolow YOU and whether you follow them back
+        let sql2 = `SELECT u.id, u.username, f.created_at,
+                    EXISTS(
+                        SELECT 1
+                        FROM follows f2
+                        WHERE f2.follower_id = ? AND f2.followed_id = u.id
+                        ) AS you_follow_them
+                    FROM follows f
+                    JOIN users u ON u.id = f.follower_id
+                    WHERE f.followed_id = ?
+                    ORDER BY u.username`;
+        const[followers] = await pool.query(sql2, [userId, userId]);
+
+        //search results
+        let searchResults = [];
+        if(searchTerm){
+            let sqlFindUser = `SELECT u.id, u.username,
+                                EXISTS(
+                                    SELECT 1
+                                    FROM follows f
+                                    WHERE f.follower_id = ? AND f.followed_id = u.id
+                                ) AS you_already_follow
+                                FROM users u
+                                WHERE u.username LIKE ? AND u.id != ?
+                                ORDER BY u.username
+                                LIMIT 20`;
+            
+            const[rows] = await pool.query(sqlFindUser, [userId, `%${searchTerm}%`, userId]);
+            searchResults = rows;
+        }
+
+        res.render('follows.ejs', {following, followers, searchResults, searchTerm});
+    } catch (err) {
+        console.error('Error loading follows page: ', err);
+        res.status(500).send('Error loading follows page');
+    }
+
+});
+
+//===========================FOLLOW SOMEONE ROUTE==========================
+app.post('/follows/add', async(req, res) => {
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const {targetId} = req.body;
+
+    if(!targetId || Number(targetId) === Number(userId)) {
+        return res.redirect('/follows');
+    }
+
+    try {
+        let sql = `INSERT IGNORE INTO follows (follower_id, followed_id, created_at)
+        VALUES (?, ?, NOW())`;
+
+        const[add] = await pool.query(sql, [userId, targetId]);
+        res.redirect('/follows');
+    } catch (err) {
+        console.error('Error following user: ', err);
+        res.status(500).send('Error following user');
+    }
+});
+
+//========================UNFOLLOW SOMEONE================================
+app.post('/follows/remove', async(req, res) => {
+    if(!req.session.user) {
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const {targetId} = req.body;
+
+    if(!targetId || Number(targetId) === Number(userId)) {
+        return res.redirect('/follows');
+    }
+
+    try {
+        let sql = `DELETE FROM follows
+                    WHERE follower_id = ? AND followed_id = ?`;
+        const[remove] = await pool.query(sql, [userId, targetId]);
+
+        res.redirect('/follows');
+    } catch (err) {
+        console.error('Error unfollowing user: ', err);
+        res.status(500).send('Error unfollowing user');
+
+    }
+
 });
 
 app.listen(3000, ()=> {
