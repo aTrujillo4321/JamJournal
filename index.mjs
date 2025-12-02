@@ -39,24 +39,101 @@ const pool = mysql.createPool({
     waitForConnections: true
 });
 
-//haven't implemented APIs for discover section 
-//haven't made friends section
+//=============================== HOME ROUTE =============================
 app.get('/', async (req, res) => {
-    let myReviews = [];
+  let myReviews = [];
+  let friendsFeed = [];
+
+  try {
     if (req.session.user) {
-        const userId = req.session.user.id;
-        const sql = `
-        SELECT reviews.id as reviewId, songs.Title, songs.Artist
+      const userId = req.session.user.id;
+
+      // ===== Your own reviews (for Delete Song modal) =====
+      const sqlMyReviews = `
+        SELECT reviews.id AS reviewId, songs.Title, songs.Artist
         FROM reviews
         JOIN songs ON reviews.Song_id = songs.id
-        WHERE reviews.User_id = ?`;
+        WHERE reviews.User_id = ?
+      `;
+      const [myRows] = await pool.query(sqlMyReviews, [userId]);
+      myReviews = myRows;
 
-        const [rows] = await pool.query(sql, [userId]);
-        myReviews = rows;
+      // ===== Friends' recent reviews feed =====
+      const sqlFriendsFeed = `
+        SELECT 
+          r.id            AS reviewId,
+          s.Title         AS songTitle,
+          s.Artist        AS artist,
+          s.Genre         AS genre,
+          s.Album_art_url AS albumArt,
+          r.Rating        AS rating,
+          r.Comment       AS comment,
+          r.Date_reviewed AS dateReviewed,
+          u.username      AS friendUsername
+        FROM reviews r
+        JOIN songs   s ON r.Song_id = s.id
+        JOIN users   u ON r.User_id = u.id
+        JOIN follows f ON f.followed_id = r.User_id
+        WHERE f.follower_id = ?
+        ORDER BY r.Date_reviewed DESC
+        LIMIT 20
+      `;
+
+      const [feedRows] = await pool.query(sqlFriendsFeed, [userId]);
+
+      // Format rows into the shape home.ejs expects
+      friendsFeed = [];
+
+      for (let i = 0; i < feedRows.length; i++) {
+        const row = feedRows[i];
+
+        // Make sure we have a Date object
+        let reviewedDate;
+        if (row.dateReviewed instanceof Date) {
+          reviewedDate = row.dateReviewed;
+        } else {
+          reviewedDate = new Date(row.dateReviewed);
+        }
+
+        // Format the time values
+        let createdISO = reviewedDate.toISOString();
+        let createdHuman = reviewedDate.toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+
+        const formattedReview = {
+          reviewId:       row.reviewId,
+          songTitle:      row.songTitle,
+          artist:         row.artist,
+          genre:          row.genre,
+          albumArt:       row.albumArt,
+          rating:         row.rating,
+          comment:        row.comment,
+          friendUsername: row.friendUsername,
+          createdISO:     createdISO,
+          createdHuman:   createdHuman
+        };
+
+        friendsFeed.push(formattedReview);
+      }
     }
-    res.render('home.ejs', {friendsFeed:[], discover:[], myReviews: myReviews });
-});
 
+    res.render('home.ejs', {
+      friendsFeed: friendsFeed,
+      myReviews: myReviews,
+      error: null
+    });
+
+  } catch (err) {
+    console.error("Error loading home page: ", err);
+    res.status(500).render('home.ejs', {
+      friendsFeed: [],
+      myReviews: [],
+      error: 'Error loading your home feed. Please try again.'
+    });
+  }
+});
 
 //================================= LOG IN PAGE ===========================================
 app.get('/auth/login', (req, res) => {
