@@ -39,7 +39,7 @@
 
 
       <!-- FRIENDS’ REVIEWS -->
-      <h2 class="mb-3">Friends’ Reviews</h2>
+      <h2 class="mb-3">Friends' Reviews</h2>
       <% if (friendsFeed && friendsFeed.length > 0) { %>
         <div class="row g-3">
           <% for (let i = 0; i < friendsFeed.length; i++) {
@@ -76,13 +76,20 @@
       <!-- LOGGED-OUT HERO -->
       <div class="text-center my-5">
         <h1 class="fw-bold">Welcome to Jam Journal</h1>
-        <p class="lead">Rate songs, write reviews, and rediscover your favorite tracks.</p>
+        <p class="lead">We hope music enthusiasts and general music enjoyers can come together to rate songs, write reviews, 
+          and discover new tracks. Add new friends and see what they're listening to. Here you can build a community solely based on
+        our music tastes. Hope you enjoy!
+        <br> <br> Don't have an account? </p>
         <a href="/auth/signup" class="btn btn-primary me-2">Sign Up</a>
+
+          <br> <br>
+
+        <p class="lead">Have an account?</p>
         <a href="/auth/login" class="btn btn-outline-secondary">Login</a>
         <div class="mt-4">
-          <a href="/discover" class="btn btn-link">
+          <!-- <a href="/discover" class="btn btn-link">
             Or browse trending songs →
-          </a>
+          </a> -->
         </div>
       </div>
     <% } %>
