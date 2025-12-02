@@ -118,7 +118,7 @@
                     <div>
                       <div class="fw-semibold">@<%= f.username %></div>
                       <div class="text-muted small">
-                        Since <%= f.created_at %>
+                        Since <time datetime="<%= f.createdISO %>"><%= f.createdHuman %></time>
                       </div>
                     </div>
                     <form method="post" action="/follows/remove" class="m-0">
@@ -157,8 +157,7 @@
                     <div>
                       <div class="fw-semibold">@<%= f.username %></div>
                       <div class="text-muted small">
-                        Since <%= f.created_at %>
-                      </div>
+                        Since <time datetime="<%= f.createdISO %>"><%= f.createdHuman %></time>                      </div>
                     </div>
 
                     <% if (f.you_follow_them) { %>

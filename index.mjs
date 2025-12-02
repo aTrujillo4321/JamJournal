@@ -420,7 +420,24 @@ app.get('/follows', async(req, res) => {
                     ORDER BY u.username`;
         const[following] = await pool.query(sql, [userId]);
 
-        //people who fooolow YOU and whether you follow them back
+        //format dates for following
+        for (let i=0; i< following.length; i++){
+            const row = following[i];
+            let d;
+            if(row.created_at instanceof Date){
+                d= row.created_at;
+            } else {
+                d = new Date(row.created_at);
+            }
+
+            row.createdISO = d.toISOString();
+            row.createdHuman = d.toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        }
+
+        //people who follow YOU and whether you follow them back
         let sql2 = `SELECT u.id, u.username, f.created_at,
                     EXISTS(
                         SELECT 1
@@ -432,6 +449,24 @@ app.get('/follows', async(req, res) => {
                     WHERE f.followed_id = ?
                     ORDER BY u.username`;
         const[followers] = await pool.query(sql2, [userId, userId]);
+
+        // ---- Format dates for followers ----
+        for (let i = 0; i < followers.length; i++) {
+        const row = followers[i];
+
+        let d;
+        if (row.created_at instanceof Date) {
+            d = row.created_at;
+        } else {
+            d = new Date(row.created_at);
+        }
+
+        row.createdISO = d.toISOString();
+        row.createdHuman = d.toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+        }
 
         //search results
         let searchResults = [];
