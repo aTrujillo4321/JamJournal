@@ -53,11 +53,15 @@ app.get('/auth/login', (req, res) => {
 
 app.post('/auth/login', async (req, res) => {
     const { username, password } = req.body;
-    let sql = `SELECT id, username FROM users WHERE username = ? AND password = ? LIMIT 1`;
+    let sql = `SELECT id, username, date_joined 
+               FROM users 
+               WHERE username = ? AND password = ? 
+               LIMIT 1`;
     const [rows] = await pool.query(sql, [username, password]);
 
     if (rows.length === 1) {
-        req.session.user = rows[0]; //id, username
+        req.session.user = rows[0]; //id, username, date_joined
+        
         return res.redirect('/');
     }
 
@@ -260,11 +264,17 @@ app.get('/profile', async (req, res) => {
 });
 
 app.post('/changePassword', async (req, res) => {
-    const { cPassword, nPassword } = req.body;
+    const {cPassword, nPassword} = req.body;
     const userId = req.session.user.id;
-    const uPassword = req.session.user.password;
+    console.log("check1");
+
+    let getPassword = `SELECT password 
+                       FROM users 
+                       WHERE id = ?`
+    const [password] = await pool.query(getPassword, [userId]);
+    console.log("check1", password[0].password);
     
-    if (uPassword != cPassword){
+    if (password[0].password !== cPassword){
         return res.status(400).render('profile.ejs', { error: 'Current password is incorrect.' });
     }
     
@@ -273,28 +283,29 @@ app.post('/changePassword', async (req, res) => {
     }
 
     const sql = 'UPDATE users SET password = ? WHERE id = ?';
-    db.query(sql, [nPassword, userId]);
 
-    req.session.destroy(() => res.redirect('/'));
+    await pool.query(sql,[nPassword, userId]);
+
+    req.session.destroy(() => {
+        res.redirect('/');
+    });
 });
 
 // for delete account
-app.post('/deleteAccount', (req, res) => {
+app.post('/deleteAccount', async (req, res) => {
     const userId = req.session.user.id; // logged-in user's ID
-    const sql1 = 'DELETE FROM songs WHERE user_id = ?';
-    const sql2 = 'DELETE FROM reviews WHERE user_id = ?';
-    const sql3 = 'DELETE FROM users WHERE id = ?';
 
-    db.query(sql1, [userId], (err) => {
-        if (err) throw err;
-        db.query(sql2, [userId], (err) => {
-            if (err) throw err;
-            db.query(sql3, [userId], (err) => {
-                if (err) throw err;
-                req.session.destroy(() => res.redirect('/'));
-            });
+    try {
+        await pool.query('DELETE FROM reviews WHERE user_id = ?', [userId]);
+        await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+
+        req.session.destroy(() => res.redirect('/'));
+    } catch (err) {
+        console.log(err);
+        return res.status(500).render('profile.ejs', { 
+            error: 'An error occurred while deleting your account.' 
         });
-    });
+    }
 });
 
 app.get('/discover', (req, res) => {
