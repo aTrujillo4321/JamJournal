@@ -39,24 +39,101 @@ const pool = mysql.createPool({
     waitForConnections: true
 });
 
-//haven't implemented APIs for discover section 
-//haven't made friends section
+//=============================== HOME ROUTE =============================
 app.get('/', async (req, res) => {
-    let myReviews = [];
+  let myReviews = [];
+  let friendsFeed = [];
+
+  try {
     if (req.session.user) {
-        const userId = req.session.user.id;
-        const sql = `
-        SELECT reviews.id as reviewId, songs.Title, songs.Artist
+      const userId = req.session.user.id;
+
+      // ===== Your own reviews (for Delete Song modal) =====
+      const sqlMyReviews = `
+        SELECT reviews.id AS reviewId, songs.Title, songs.Artist
         FROM reviews
         JOIN songs ON reviews.Song_id = songs.id
-        WHERE reviews.User_id = ?`;
+        WHERE reviews.User_id = ?
+      `;
+      const [myRows] = await pool.query(sqlMyReviews, [userId]);
+      myReviews = myRows;
 
-        const [rows] = await pool.query(sql, [userId]);
-        myReviews = rows;
+      // ===== Friends' recent reviews feed =====
+      const sqlFriendsFeed = `
+        SELECT 
+          r.id            AS reviewId,
+          s.Title         AS songTitle,
+          s.Artist        AS artist,
+          s.Genre         AS genre,
+          s.Album_art_url AS albumArt,
+          r.Rating        AS rating,
+          r.Comment       AS comment,
+          r.Date_reviewed AS dateReviewed,
+          u.username      AS friendUsername
+        FROM reviews r
+        JOIN songs   s ON r.Song_id = s.id
+        JOIN users   u ON r.User_id = u.id
+        JOIN follows f ON f.followed_id = r.User_id
+        WHERE f.follower_id = ?
+        ORDER BY r.Date_reviewed DESC
+        LIMIT 20
+      `;
+
+      const [feedRows] = await pool.query(sqlFriendsFeed, [userId]);
+
+      // Format rows into the shape home.ejs expects
+      friendsFeed = [];
+
+      for (let i = 0; i < feedRows.length; i++) {
+        const row = feedRows[i];
+
+        // Make sure we have a Date object
+        let reviewedDate;
+        if (row.dateReviewed instanceof Date) {
+          reviewedDate = row.dateReviewed;
+        } else {
+          reviewedDate = new Date(row.dateReviewed);
+        }
+
+        // Format the time values
+        let createdISO = reviewedDate.toISOString();
+        let createdHuman = reviewedDate.toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+
+        const formattedReview = {
+          reviewId:       row.reviewId,
+          songTitle:      row.songTitle,
+          artist:         row.artist,
+          genre:          row.genre,
+          albumArt:       row.albumArt,
+          rating:         row.rating,
+          comment:        row.comment,
+          friendUsername: row.friendUsername,
+          createdISO:     createdISO,
+          createdHuman:   createdHuman
+        };
+
+        friendsFeed.push(formattedReview);
+      }
     }
-    res.render('home.ejs', {friendsFeed:[], discover:[], myReviews: myReviews });
-});
 
+    res.render('home.ejs', {
+      friendsFeed: friendsFeed,
+      myReviews: myReviews,
+      error: null
+    });
+
+  } catch (err) {
+    console.error("Error loading home page: ", err);
+    res.status(500).render('home.ejs', {
+      friendsFeed: [],
+      myReviews: [],
+      error: 'Error loading your home feed. Please try again.'
+    });
+  }
+});
 
 //================================= LOG IN PAGE ===========================================
 app.get('/auth/login', (req, res) => {
@@ -89,6 +166,7 @@ app.get('/auth/signup', (req, res) => {
 
 app.post('/auth/signup', async(req, res) => {
     const {username, password, confirmPass} = req.body;
+    const FIRST_FRIEND = 1;
 
     //check all fields filled
     if(!username || !password || !confirmPass){
@@ -113,9 +191,17 @@ app.post('/auth/signup', async(req, res) => {
 
     let insert = `INSERT INTO users (username, password, date_joined) VALUES (?, ?, NOW())`;
     const [result] = await pool.query(insert, [username, password]);
+    const newUserId = result.insertId;
+
+    //auto friend w/ lesly
+    let sqlFriend = `INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, NOW())`;
+    const[friend] = await pool.query(sqlFriend, [newUserId, FIRST_FRIEND]);
+    
+    let sqlFriendBack = `INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?,?, NOW())`;
+    const[friendBack] = await pool.query(sqlFriendBack, [FIRST_FRIEND, newUserId]);
 
     //automatically log in after sign up
-    req.session.user = {id: result.insertId, username};
+    req.session.user = {id: newUserId, username};
     return res.redirect('/');
 });
 
@@ -313,6 +399,151 @@ app.get('/discover', async (req, res) => {
 
 app.get('/deleting', (req, res) => {
     res.render('deleting.ejs')
+});
+
+//===========================FOLLOWS PAGE==================================
+app.get('/follows', async(req, res) => {
+    //if user not logged in and tries to access follows page
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const searchTerm = (req.query.q || '').trim();
+
+    try{
+        //people you follow
+        let sql = `SELECT u.id, u.username, f.created_at
+                    FROM follows f
+                    JOIN users u ON u.id = f.followed_id
+                    WHERE f.follower_id = ?
+                    ORDER BY u.username`;
+        const[following] = await pool.query(sql, [userId]);
+
+        //format dates for following
+        for (let i=0; i< following.length; i++){
+            const row = following[i];
+            let d;
+            if(row.created_at instanceof Date){
+                d= row.created_at;
+            } else {
+                d = new Date(row.created_at);
+            }
+
+            row.createdISO = d.toISOString();
+            row.createdHuman = d.toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        }
+
+        //people who follow YOU and whether you follow them back
+        let sql2 = `SELECT u.id, u.username, f.created_at,
+                    EXISTS(
+                        SELECT 1
+                        FROM follows f2
+                        WHERE f2.follower_id = ? AND f2.followed_id = u.id
+                        ) AS you_follow_them
+                    FROM follows f
+                    JOIN users u ON u.id = f.follower_id
+                    WHERE f.followed_id = ?
+                    ORDER BY u.username`;
+        const[followers] = await pool.query(sql2, [userId, userId]);
+
+        // ---- Format dates for followers ----
+        for (let i = 0; i < followers.length; i++) {
+        const row = followers[i];
+
+        let d;
+        if (row.created_at instanceof Date) {
+            d = row.created_at;
+        } else {
+            d = new Date(row.created_at);
+        }
+
+        row.createdISO = d.toISOString();
+        row.createdHuman = d.toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+        }
+
+        //search results
+        let searchResults = [];
+        if(searchTerm){
+            let sqlFindUser = `SELECT u.id, u.username,
+                                EXISTS(
+                                    SELECT 1
+                                    FROM follows f
+                                    WHERE f.follower_id = ? AND f.followed_id = u.id
+                                ) AS you_already_follow
+                                FROM users u
+                                WHERE u.username LIKE ? AND u.id != ?
+                                ORDER BY u.username
+                                LIMIT 20`;
+            
+            const[rows] = await pool.query(sqlFindUser, [userId, `%${searchTerm}%`, userId]);
+            searchResults = rows;
+        }
+
+        res.render('follows.ejs', {following, followers, searchResults, searchTerm});
+    } catch (err) {
+        console.error('Error loading follows page: ', err);
+        res.status(500).send('Error loading follows page');
+    }
+
+});
+
+//===========================FOLLOW SOMEONE ROUTE==========================
+app.post('/follows/add', async(req, res) => {
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const {targetId} = req.body;
+
+    if(!targetId || Number(targetId) === Number(userId)) {
+        return res.redirect('/follows');
+    }
+
+    try {
+        let sql = `INSERT IGNORE INTO follows (follower_id, followed_id, created_at)
+        VALUES (?, ?, NOW())`;
+
+        const[add] = await pool.query(sql, [userId, targetId]);
+        res.redirect('/follows');
+    } catch (err) {
+        console.error('Error following user: ', err);
+        res.status(500).send('Error following user');
+    }
+});
+
+//========================UNFOLLOW SOMEONE================================
+app.post('/follows/remove', async(req, res) => {
+    if(!req.session.user) {
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const {targetId} = req.body;
+
+    if(!targetId || Number(targetId) === Number(userId)) {
+        return res.redirect('/follows');
+    }
+
+    try {
+        let sql = `DELETE FROM follows
+                    WHERE follower_id = ? AND followed_id = ?`;
+        const[remove] = await pool.query(sql, [userId, targetId]);
+
+        res.redirect('/follows');
+    } catch (err) {
+        console.error('Error unfollowing user: ', err);
+        res.status(500).send('Error unfollowing user');
+
+    }
+
 });
 
 app.listen(3000, ()=> {

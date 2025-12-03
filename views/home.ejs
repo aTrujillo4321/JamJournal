@@ -39,50 +39,75 @@
 
 
       <!-- FRIENDS’ REVIEWS -->
-      <h2 class="mb-3">Friends’ Reviews</h2>
-      <% if (friendsFeed && friendsFeed.length > 0) { %>
-        <div class="row g-3">
-          <% for (let i = 0; i < friendsFeed.length; i++) {
-               const r = friendsFeed[i]; %>
-            <div class="col-12 col-md-6">
-              <article class="border rounded p-3 h-100 bg-white shadow-sm"></article>
-                <div class="d-flex">
-                  <img
-                    src="<%= r.albumArt || '/images/placeholder-album.png' %>"
-                    alt=""
-                    class="me-3 rounded"
-                    width="80" height="80" />
-                  <div class="flex-grow-1">
-                    <h5 class="mb-1"><%= r.songTitle %></h5>
-                    <small class="text-muted d-block mb-2">
-                      <%= r.artist %> • <%= r.rating %>/10 •
-                      <time datetime="<%= r.createdISO %>"><%= r.createdHuman %></time>
-                      • by <a href="/u/<%= r.friendUsername %>"><%= r.friendUsername %></a>
-                    </small>
-                    <% if (r.comment) { %>
-                      <p class="mb-2"><%= r.comment %></p>
-                    <% } %>
-                  </div>
-                </div>
-              </article>
-            </div>
-          <% } %>
+      <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h4 mb-0">Friends' Reviews</h2>
         </div>
-      <% } else { %>
-        <p class="text-center text-muted">No recent activity from friends yet.</p>
-      <% } %>
+
+        <% if (friendsFeed && friendsFeed.length > 0) { %>
+          <div class="row g-3">
+            <% friendsFeed.forEach(function(r) { %>
+              <div class="col-12 col-md-6">
+                <article class="border rounded p-3 h-100 bg-white shadow-sm">
+                  <div class="d-flex">
+                    <img
+                      src="<%= r.albumArt || '/images/placeholder-album.png' %>"
+                      alt="Album art for <%= r.songTitle %>"
+                      class="me-3 rounded"
+                      width="80" height="80" />
+
+                    <div class="flex-grow-1">
+                      <!-- top line: username + time -->
+                      <div class="d-flex justify-content-between align-items-start mb-1">
+                        <small class="text-muted">
+                          by <a href="/u/<%= r.friendUsername %>">@<%= r.friendUsername %></a>
+                        </small>
+                        <small class="text-muted">
+                          <time datetime="<%= r.createdISO %>"><%= r.createdHuman %></time>
+                        </small>
+                      </div>
+
+                      <!-- song + rating -->
+                      <h5 class="mb-1"><%= r.songTitle %></h5>
+                      <small class="text-muted d-block mb-2">
+                        <%= r.artist %> • <%= r.rating %>/10
+                      </small>
+
+                      <!-- optional comment -->
+                      <% if (r.comment) { %>
+                        <p class="mb-0"><%= r.comment %></p>
+                      <% } %>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <p class="text-center text-muted mb-0">
+            No recent activity from friends yet. Try following more users to see their reviews here!
+          </p>
+        <% } %>
+      </section>
 
     <% } else { %>
       <!-- LOGGED-OUT HERO -->
       <div class="text-center my-5">
         <h1 class="fw-bold">Welcome to Jam Journal</h1>
-        <p class="lead">Rate songs, write reviews, and rediscover your favorite tracks.</p>
+        <p class="lead">We hope music enthusiasts and general music enjoyers can come together to rate songs, write reviews, 
+          and discover new tracks. Add new friends and see what they're listening to. Here you can build a community solely based on
+        our music tastes. Hope you enjoy!
+        <br> <br> Don't have an account? </p>
         <a href="/auth/signup" class="btn btn-primary me-2">Sign Up</a>
+
+          <br> <br>
+
+        <p class="lead">Have an account?</p>
         <a href="/auth/login" class="btn btn-outline-secondary">Login</a>
         <div class="mt-4">
-          <a href="/discover" class="btn btn-link">
+          <!-- <a href="/discover" class="btn btn-link">
             Or browse trending songs →
-          </a>
+          </a> -->
         </div>
       </div>
     <% } %>
