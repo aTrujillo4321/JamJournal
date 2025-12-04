@@ -218,25 +218,63 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
+
+        //try to get album art from itunes API
+        let albumArtUrl = null;
+
+        try{
+            const term = `${title} ${artist}`;
+            const url = "https://itunes.apple.com/search"
+                        + "?term=" + encodeURIComponent(term)
+                        + "&media=music"
+                        + "&entity=song"
+                        + "&limit=1"
+                        + "&country=US";
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            const results = data.results || [];
+            
+            if(results.length > 0 && results[0].artworkUrl100){
+                //might use a bigger size later
+                albumArtUrl = results[0].artworkUrl100.replace('100x100bb', '300x300bb');
+            }
+        } catch (apiErr) {
+            console.error('Error fetching album art from iTunes:', apiErr);
+        }
+
+
         let [existingSong] = await conn.query('SELECT id FROM songs WHERE Title = ? AND Artist = ? LIMIT 1', [title, artist]);
         let songId;
 
         if (existingSong.length === 0) {
-            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre) VALUES (?, ?, ?)', [title, artist, genre || null]);
+            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre, album_art_url, created_by) VALUES (?, ?, ?, ?, ?)', [title, artist, genre || null, albumArtUrl, userId]);
             songId = songInsert.insertId;
         }
         else {
             songId = existingSong[0].id;
+
+            if (!existingSong[0].album_art_url  && albumArtUrl) {
+                await conn.query(
+                    `UPDATE songs SET album_art_url = ? WHERE id = ?`,
+                    [albumArtUrl, songId]
+                );
+            }
         }
 
         await conn.query('INSERT INTO reviews (User_id, Song_id, Rating, Comment, Date_reviewed) VALUES (?, ?, ?, ?, NOW())', [userId, songId, rating, comment || null]);
         await conn.commit();
+        conn.release();
         res.redirect('/');
     } 
     catch (err) {
         await conn.rollback();
         console.error("Error adding song or review:", err);
-        res.status(500).render('home.ejs', {error: 'An error occurred. Try again!', friendsFeed: [], discover: []});
+        res.status(500).render('home.ejs', {
+            error: 'An error occurred. Try again!',
+            friendsFeed: [],
+            myReviews: []        // used to be `discover: []`
+        });
     }
 });
 
