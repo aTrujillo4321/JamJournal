@@ -211,7 +211,7 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
 
     if (!title || !artist || !rating) {
         return res.status(400).render('home.ejs', {
-            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], discover: []
+            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], myReviews: []
         });
     }
 
@@ -243,7 +243,7 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
             console.error('Error fetching album art from iTunes:', apiErr);
         }
 
-
+        //find or create song
         let [existingSong] = await conn.query('SELECT id FROM songs WHERE Title = ? AND Artist = ? LIMIT 1', [title, artist]);
         let songId;
 
