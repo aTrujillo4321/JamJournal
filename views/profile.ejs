@@ -1,15 +1,144 @@
 <!doctype html>
 <html>
+
 <head>
-  <meta charset="utf-8"/>
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <link rel="stylesheet" href="/css/style.css" />
   <title>Your Profile</title>
 </head>
+
 <body>
-    <%- include('partials/nav') %>
+  <%- include('partials/nav') %>
+
+    <main class="container my-4">
+
+      <!-- PAGE HEADER -->
+      <div class="mb-4">
+         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+              <h1 class="h3 mb-1">Profile</h1>
+              <p class="text-muted mb-0">Manage Your JamJournal account and connections.</p>
+          </div>
+
+          <span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">
+            @<%= user.username %>
+          </span>
+         </div>
+      </div>
+
+      <div class="row g-4">
+        <!-- LEFT COLUMN: Profile info and Follows Page link -->
+        <div class="col-lg-8">
+
+          <!-- PROFILE details card -->
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+              <h2 class="h5 mb-3">Account Details</h2>
+
+              <dl class="row mb-0">
+                <dt class="col-sm-4 text-muted">Username</dt>
+                <dd class="col-sm-8 fw-semibold">
+                  @<%= user.username %>
+                </dd>
+
+                <dt class="col-sm-4 text-muted">User ID</dt>
+                <dd class="col-sm-8">
+                  <code><%= user.id %></code>
+                </dd>
+
+                <dt class="col-sm-4 text-muted">Date joined</dt>
+                <dd class="col-sm-8">
+                  <%= user.dateJoinedHuman %>
+                </dd>
+              </dl>
+            </div>
+          </div>
+
+            <!-- Follows section card -->
+          <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div>
+                <h2 class="h5 mb-1">Friends & Follows</h2>
+                <p class="text-muted small mb-0">
+                  See who you follow and who follows you on JamJournal
+                </p>
+              </div>
+
+              <a href="/follows" class="btn btn-outline-primary">
+                Open Follows Page
+              </a>
+            </div>
+          </div>
+        </div>
+
+          <!-- RIGHT COLUMN: Change password button -->
+          <div class="col-lg-4">
+            
+            <!-- Change password card -->
+            <div class="card border-0 shadow-sm mb-4">
+              <div class="card-body">
+                <h2 class="h6 mb-3">Security</h2>
+                <p class="text-muted small mb-3">
+                  Update your password regularly to keep your account safe.
+                </p>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#changePassword">
+                  Change Password
+                </button>
+              </div>
+            </div>
+
+            <!-- Delete Account Card -->
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <h2 class="h6 text-danger mb-3">Danger Zone</h2>
+                <p class="text-muted small">
+                  Deleting your account will remove all your reviews and data. This action
+                  <strong>cannot</strong> be undone.
+                </p>
+
+                <form action="/deleteAccount" method="POST"
+                  onsubmit="return confirm('Are you sure you want to delete your account?');">
+                  <button type="submit" class="btn btn-danger">Delete Account</button>
+                </form>
+              </div>
+            </div>
+          
+      </div>
+
+      <!-- ===== change password MODAL ===== -->
+      <div class="modal fade" id="changePassword" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Change Password</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form action="/changePassword" method="post" class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Current Password</label>
+                  <input type="password" name="cPassword" class="form-control" required />
+                </div>
+
+                <div class="col-12"></div> 
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label">New Password</label>
+                  <input type="password" name="nPassword" class="form-control" required />
+                </div>
+
+                <button type="submit" class="btn btn-primary">Change</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
 
     <%- include('partials/footer') %>
 </body>
+
 </html>
