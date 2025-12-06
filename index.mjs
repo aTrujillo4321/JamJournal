@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import mysql from 'mysql2/promise';
 import session from 'express-session';
@@ -5,28 +6,28 @@ import session from 'express-session';
 const app = express();
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-app.use(express.urlencoded({extended:true}));
+app.use(express.urlencoded({ extended: true }));
 
 app.use(
-  session({
-    secret: 'dev-secret-change-me',   // TODO: move to env var in prod
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 8 }, // 8h
-  })
+    session({
+        secret: 'dev-secret-change-me',   // TODO: move to env var in prod
+        resave: false,
+        saveUninitialized: false,
+        cookie: { maxAge: 1000 * 60 * 60 * 8 }, // 8h
+    })
 );
 
 // make `user` available in all EJS views as res.locals.user
 app.use((req, res, next) => {
-  res.locals.user = req.session.user || null;
-  next();
+    res.locals.user = req.session.user || null;
+    next();
 });
 
 const isLoggedIn = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/auth/login');
-  }
-  next();
+    if (!req.session.user) {
+        return res.redirect('/auth/login');
+    }
+    next();
 };
 
 //log into PHP to see database with these credentials
@@ -140,18 +141,22 @@ app.get('/auth/login', (req, res) => {
     res.render('login.ejs')
 });
 
-app.post('/auth/login', async(req,res) => {
-    const {username, password} = req.body;
-    let sql = `SELECT id, username FROM users WHERE username = ? AND password = ? LIMIT 1`;
+app.post('/auth/login', async (req, res) => {
+    const { username, password } = req.body;
+    let sql = `SELECT id, username, date_joined 
+               FROM users 
+               WHERE username = ? AND password = ? 
+               LIMIT 1`;
     const [rows] = await pool.query(sql, [username, password]);
 
     if (rows.length === 1) {
-        req.session.user = rows[0]; //id, username
+        req.session.user = rows[0]; //id, username, date_joined
+        //console.log(rows[0]);
         return res.redirect('/');
     }
 
     //if failed
-    res.status(401).render('login.ejs', {error: 'Invalid Credentials'});
+    res.status(401).render('login.ejs', { error: 'Invalid Credentials' });
 })
 
 //----- for Logout button ------
@@ -169,24 +174,24 @@ app.post('/auth/signup', async(req, res) => {
     const FIRST_FRIEND = 1;
 
     //check all fields filled
-    if(!username || !password || !confirmPass){
-        return res.status(400).render('signup.ejs', {error: 'All fields are required.'});
-    }
-    
-    //check pass and confirmPass match
-    if(password != confirmPass){
-        return res.status(400).render('signup.ejs', {error: 'Passwords do not match.'});
+    if (!username || !password || !confirmPass) {
+        return res.status(400).render('signup.ejs', { error: 'All fields are required.' });
     }
 
-    if(password.length < 6){
-        return res.status(400).render('signup.ejs', {error:'Password must be at least 6 characters.'});
+    //check pass and confirmPass match
+    if (password != confirmPass) {
+        return res.status(400).render('signup.ejs', { error: 'Passwords do not match.' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).render('signup.ejs', { error: 'Password must be at least 6 characters.' });
     }
 
     //check if username is available
     let sql = `SELECT id FROM users WHERE username = ?`;
-    const[exists] = await pool.query(sql, [username]);
-    if(exists.length){ //if there is a length to exists that means it exists
-        return res.status(409).render('signup.ejs', {error: 'Username is already taken.'});
+    const [exists] = await pool.query(sql, [username]);
+    if (exists.length) { //if there is a length to exists that means it exists
+        return res.status(409).render('signup.ejs', { error: 'Username is already taken.' });
     }
 
     let insert = `INSERT INTO users (username, password, date_joined) VALUES (?, ?, NOW())`;
@@ -211,32 +216,70 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
 
     if (!title || !artist || !rating) {
         return res.status(400).render('home.ejs', {
-            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], discover: []
+            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], myReviews: []
         });
     }
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
+
+        //try to get album art from itunes API
+        let albumArtUrl = null;
+
+        try{
+            const term = `${title} ${artist}`;
+            const url = "https://itunes.apple.com/search"
+                        + "?term=" + encodeURIComponent(term)
+                        + "&media=music"
+                        + "&entity=song"
+                        + "&limit=1"
+                        + "&country=US";
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            const results = data.results || [];
+            
+            if(results.length > 0 && results[0].artworkUrl100){
+                //might use a bigger size later
+                albumArtUrl = results[0].artworkUrl100.replace('100x100bb', '300x300bb');
+            }
+        } catch (apiErr) {
+            console.error('Error fetching album art from iTunes:', apiErr);
+        }
+
+        //find or create song
         let [existingSong] = await conn.query('SELECT id FROM songs WHERE Title = ? AND Artist = ? LIMIT 1', [title, artist]);
         let songId;
 
         if (existingSong.length === 0) {
-            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre) VALUES (?, ?, ?)', [title, artist, genre || null]);
+            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre, album_art_url, created_by) VALUES (?, ?, ?, ?, ?)', [title, artist, genre || null, albumArtUrl, userId]);
             songId = songInsert.insertId;
         }
         else {
             songId = existingSong[0].id;
+
+            if (!existingSong[0].album_art_url  && albumArtUrl) {
+                await conn.query(
+                    `UPDATE songs SET album_art_url = ? WHERE id = ?`,
+                    [albumArtUrl, songId]
+                );
+            }
         }
 
         await conn.query('INSERT INTO reviews (User_id, Song_id, Rating, Comment, Date_reviewed) VALUES (?, ?, ?, ?, NOW())', [userId, songId, rating, comment || null]);
         await conn.commit();
+        conn.release();
         res.redirect('/');
-    } 
+    }
     catch (err) {
         await conn.rollback();
         console.error("Error adding song or review:", err);
-        res.status(500).render('home.ejs', {error: 'An error occurred. Try again!', friendsFeed: [], discover: []});
+        res.status(500).render('home.ejs', {
+            error: 'An error occurred. Try again!',
+            friendsFeed: [],
+            myReviews: []        // used to be `discover: []`
+        });
     }
 });
 
@@ -309,20 +352,20 @@ app.get('/lyrics', async(req, res) => {
    // res.render('library.ejs')
 });
 
-app.get('/searching', async(req, res) => {
+app.get('/searching', async (req, res) => {
     let term = (req.query.q || "").trim();
 
-    if(!term){
-        return res.render('searching.ejs',{
-            term:"",
+    if (!term) {
+        return res.render('searching.ejs', {
+            term: "",
             results: [],
-            error:null
+            error: null
         });
     }
 
-    try{
-        let url = 
-        "https://itunes.apple.com/search"
+    try {
+        let url =
+            "https://itunes.apple.com/search"
             + "?term=" + encodeURIComponent(term)
             + "&media=music"
             + "&entity=song"
@@ -333,15 +376,15 @@ app.get('/searching', async(req, res) => {
 
         let results = data.results || [];
 
-        return res.render('searching.ejs',{
+        return res.render('searching.ejs', {
             term,
             results,
-            error: results.length? null : "No songs found"
+            error: results.length ? null : "No songs found"
         });
-    }catch (err){
-        console.error("iTunes search error:",err);
+    } catch (err) {
+        console.error("iTunes search error:", err);
 
-        return res.render('searching.ejs',{
+        return res.render('searching.ejs', {
             term,
             results: [],
             error: "Error getting search results from iTunes"
@@ -349,17 +392,149 @@ app.get('/searching', async(req, res) => {
     }
 });
 
-app.get('/library', (req, res) => {
-    res.render('library.ejs')
+app.get('/track/:artist/:title', async(req, res) => {
+    let artist = req.params.artist;
+    let title = req.params.title;
+
+    try{
+        let itunesUrl = 
+        "https://itunes.apple.com/search"
+            + "?term=" + encodeURIComponent(artist + " " + title)
+            + "&media=music"
+            + "&entity=song"
+            + "&limit=1";
+
+    let itunesRes = await fetch(itunesUrl);
+    let itunesData = await itunesRes.json();
+
+    let track = itunesData.results[0] || null;
+
+    let lastfmUrl =
+         "https://ws.audioscrobbler.com/2.0/"
+         + "?method=track.getInfo"
+         + "&artist=" + encodeURIComponent(artist)
+         + "&track=" + encodeURIComponent(title)
+         + "&api_key=" + process.env.LASTFM_API_KEY
+         + "&format=json";
+
+         let lastfmRes = await fetch(lastfmUrl);
+         let lastfmData = await lastfmRes.json();
+
+         let lastfm = lastfmData.track || null;
+
+         return res.render('track.ejs',{
+            artist,
+            title,
+            track,
+            lastfm,
+            error:null
+
+         });
+
+        
+    } catch (err){
+        console.error("Track details error:", err);
+
+        return res.render('track.ejs',{
+            artist,
+            title,
+            track:null,
+            lastfm:null,
+            error:"Error getting track details"
+        });
+
+    }
+
+});
+
+
+
+app.get('/library', async (req, res) => {
+
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    let sql = `SELECT *
+               FROM reviews
+               JOIN songs ON reviews.song_id = songs.id 
+               WHERE user_id LIKE ?`;
+    let sqlParams = req.session.user.id;
+    const [rows] = await pool.query(sql, [sqlParams]);
+    //console.log(rows);
+    res.render('library.ejs', { rows })
 });
 
 app.get('/adding', (req, res) => {
     res.render('adding.ejs')
 });
 
-app.get('/profile', (req, res) => {
-    res.render('profile.ejs')
+app.get('/profile', async (req, res) => {
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    //coopy session user so we can safely modify it
+    const user = { ...req.session.user };
+
+    //format date_joined
+    if(user.date_joined){
+        let d = (user.date_joined instanceof Date) 
+        ? user.date_joined : new Date(user.date_joined);
+
+        user.dateJoinedHuman = d.toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+    }
+    res.render('profile.ejs', {user})
 });
+
+app.post('/changePassword', async (req, res) => {
+    const {cPassword, nPassword} = req.body;
+    const userId = req.session.user.id;
+    console.log("check1");
+
+    let getPassword = `SELECT password 
+                       FROM users 
+                       WHERE id = ?`
+    const [password] = await pool.query(getPassword, [userId]);
+    console.log("check1", password[0].password);
+    
+    if (password[0].password !== cPassword){
+        return res.status(400).render('profile.ejs', { error: 'Current password is incorrect.' });
+    }
+    
+    if (nPassword.length < 6){
+        return res.status(400).render('profile.ejs', { error: 'Password must be at least 6 characters.' });
+    }
+
+    const sql = 'UPDATE users SET password = ? WHERE id = ?';
+
+    await pool.query(sql,[nPassword, userId]);
+
+    req.session.destroy(() => {
+        res.redirect('/');
+    });
+});
+
+// for delete account
+app.post('/deleteAccount', async (req, res) => {
+    const userId = req.session.user.id; // logged-in user's ID
+
+    try {
+        await pool.query('DELETE FROM reviews WHERE user_id = ?', [userId]);
+        await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+
+        req.session.destroy(() => res.redirect('/'));
+    } catch (err) {
+        console.log(err);
+        return res.status(500).render('profile.ejs', { 
+            error: 'An error occurred while deleting your account.' 
+        });
+    }
+});
+
 
 app.get('/discover', async (req, res) => {
     const genres = ['Pop', 'Rock', 'Metal', 'Rap', 'Electronic', 'Country', 'R&B', 'Jazz'];

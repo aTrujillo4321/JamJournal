@@ -43,7 +43,11 @@
                                 width="100" height="100">
                             <%}%>
                             <div>
-                                <h5 class="mb-1"><%=track.trackName%></h5>
+                                <h5 class="mb-1"><%=track.trackName%> <br>
+                                <a href="/track/<%= encodeURIComponent(track.artistName) %>/<%= encodeURIComponent(track.trackName)%>">
+                                Details
+                                </a>
+                                </h5>
                                 <p class="mb-1 text-muted">
                                     <%=track.artistName%>
                                     <% if (track.collectionName){%>
@@ -51,11 +55,11 @@
                                   <% }%>
                                 </p>
                                 <% if (track.previewUrl){ %>
-                                    <audio controls style="width:100;">
+                                    <audio controls style="width: 100;">
                                         <source src="<%= track.previewUrl%>" type="audio/mpeg">
                                     </audio>
                                 <%}%>
-                                <% if(track.ViewUrl){%>
+                                <% if(track.trackViewUrl){%>
                                     <div class="mt-2">
                                         <a href="<%= track.trackViewUrl %>" target="_blank">
                                             View on iTunes
