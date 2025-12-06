@@ -395,6 +395,11 @@ app.get('/searching', async (req, res) => {
 
 
 app.get('/library', async (req, res) => {
+
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
     let sql = `SELECT *
                FROM reviews
                JOIN songs ON reviews.song_id = songs.id 
