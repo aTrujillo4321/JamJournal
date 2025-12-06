@@ -39,12 +39,109 @@ const pool = mysql.createPool({
     waitForConnections: true
 });
 
+<<<<<<< HEAD
 //haven't implemented APIs for discover section 
 //haven't made friends section
 app.get('/', (req, res) => {
     res.render('home.ejs', { friendsFeed: [], discover: [] });
 });
+=======
+//=============================== HOME ROUTE =============================
+app.get('/', async (req, res) => {
+  let myReviews = [];
+  let friendsFeed = [];
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 
+  try {
+    if (req.session.user) {
+      const userId = req.session.user.id;
+
+      // ===== Your own reviews (for Delete Song modal) =====
+      const sqlMyReviews = `
+        SELECT reviews.id AS reviewId, songs.Title, songs.Artist
+        FROM reviews
+        JOIN songs ON reviews.Song_id = songs.id
+        WHERE reviews.User_id = ?
+      `;
+      const [myRows] = await pool.query(sqlMyReviews, [userId]);
+      myReviews = myRows;
+
+      // ===== Friends' recent reviews feed =====
+      const sqlFriendsFeed = `
+        SELECT 
+          r.id            AS reviewId,
+          s.Title         AS songTitle,
+          s.Artist        AS artist,
+          s.Genre         AS genre,
+          s.Album_art_url AS albumArt,
+          r.Rating        AS rating,
+          r.Comment       AS comment,
+          r.Date_reviewed AS dateReviewed,
+          u.username      AS friendUsername
+        FROM reviews r
+        JOIN songs   s ON r.Song_id = s.id
+        JOIN users   u ON r.User_id = u.id
+        JOIN follows f ON f.followed_id = r.User_id
+        WHERE f.follower_id = ?
+        ORDER BY r.Date_reviewed DESC
+        LIMIT 20
+      `;
+
+      const [feedRows] = await pool.query(sqlFriendsFeed, [userId]);
+
+      // Format rows into the shape home.ejs expects
+      friendsFeed = [];
+
+      for (let i = 0; i < feedRows.length; i++) {
+        const row = feedRows[i];
+
+        // Make sure we have a Date object
+        let reviewedDate;
+        if (row.dateReviewed instanceof Date) {
+          reviewedDate = row.dateReviewed;
+        } else {
+          reviewedDate = new Date(row.dateReviewed);
+        }
+
+        // Format the time values
+        let createdISO = reviewedDate.toISOString();
+        let createdHuman = reviewedDate.toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+
+        const formattedReview = {
+          reviewId:       row.reviewId,
+          songTitle:      row.songTitle,
+          artist:         row.artist,
+          genre:          row.genre,
+          albumArt:       row.albumArt,
+          rating:         row.rating,
+          comment:        row.comment,
+          friendUsername: row.friendUsername,
+          createdISO:     createdISO,
+          createdHuman:   createdHuman
+        };
+
+        friendsFeed.push(formattedReview);
+      }
+    }
+
+    res.render('home.ejs', {
+      friendsFeed: friendsFeed,
+      myReviews: myReviews,
+      error: null
+    });
+
+  } catch (err) {
+    console.error("Error loading home page: ", err);
+    res.status(500).render('home.ejs', {
+      friendsFeed: [],
+      myReviews: [],
+      error: 'Error loading your home feed. Please try again.'
+    });
+  }
+});
 
 //================================= LOG IN PAGE ===========================================
 app.get('/auth/login', (req, res) => {
@@ -79,8 +176,14 @@ app.get('/auth/signup', (req, res) => {
     res.render('signup.ejs')
 });
 
+<<<<<<< HEAD
 app.post('/auth/signup', async (req, res) => {
     const { username, password, confirmPass } = req.body;
+=======
+app.post('/auth/signup', async(req, res) => {
+    const {username, password, confirmPass} = req.body;
+    const FIRST_FRIEND = 1;
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 
     //check all fields filled
     if (!username || !password || !confirmPass) {
@@ -105,9 +208,21 @@ app.post('/auth/signup', async (req, res) => {
 
     let insert = `INSERT INTO users (username, password, date_joined) VALUES (?, ?, NOW())`;
     const [result] = await pool.query(insert, [username, password]);
+    const newUserId = result.insertId;
+
+    //auto friend w/ lesly
+    let sqlFriend = `INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, NOW())`;
+    const[friend] = await pool.query(sqlFriend, [newUserId, FIRST_FRIEND]);
+    
+    let sqlFriendBack = `INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?,?, NOW())`;
+    const[friendBack] = await pool.query(sqlFriendBack, [FIRST_FRIEND, newUserId]);
 
     //automatically log in after sign up
+<<<<<<< HEAD
     req.session.user = { id: result.insertId, username };
+=======
+    req.session.user = {id: newUserId, username};
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     return res.redirect('/');
 });
 
@@ -117,32 +232,95 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
 
     if (!title || !artist || !rating) {
         return res.status(400).render('home.ejs', {
-            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], discover: []
+            error: 'Title, Artist, and Rating need to be filled in.', friendsFeed: [], myReviews: []
         });
     }
 
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
+
+        //try to get album art from itunes API
+        let albumArtUrl = null;
+
+        try{
+            const term = `${title} ${artist}`;
+            const url = "https://itunes.apple.com/search"
+                        + "?term=" + encodeURIComponent(term)
+                        + "&media=music"
+                        + "&entity=song"
+                        + "&limit=1"
+                        + "&country=US";
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            const results = data.results || [];
+            
+            if(results.length > 0 && results[0].artworkUrl100){
+                //might use a bigger size later
+                albumArtUrl = results[0].artworkUrl100.replace('100x100bb', '300x300bb');
+            }
+        } catch (apiErr) {
+            console.error('Error fetching album art from iTunes:', apiErr);
+        }
+
+        //find or create song
         let [existingSong] = await conn.query('SELECT id FROM songs WHERE Title = ? AND Artist = ? LIMIT 1', [title, artist]);
         let songId;
 
         if (existingSong.length === 0) {
+<<<<<<< HEAD
             const [songInsert] = await conn.query('INSERT INTO songs (user_id, Title, Artist, Genre) VALUES (?, ?, ?, ?)', [userId, title, artist, genre || null]);
+=======
+            const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre, album_art_url, created_by) VALUES (?, ?, ?, ?, ?)', [title, artist, genre || null, albumArtUrl, userId]);
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
             songId = songInsert.insertId;
         }
         else {
             songId = existingSong[0].id;
+
+            if (!existingSong[0].album_art_url  && albumArtUrl) {
+                await conn.query(
+                    `UPDATE songs SET album_art_url = ? WHERE id = ?`,
+                    [albumArtUrl, songId]
+                );
+            }
         }
 
         await conn.query('INSERT INTO reviews (User_id, Song_id, Rating, Comment, Date_reviewed) VALUES (?, ?, ?, ?, NOW())', [userId, songId, rating, comment || null]);
         await conn.commit();
+        conn.release();
         res.redirect('/');
     }
     catch (err) {
         await conn.rollback();
         console.error("Error adding song or review:", err);
+<<<<<<< HEAD
         res.status(500).render('home.ejs', { error: 'An error occurred. Try again!', friendsFeed: [], discover: [] });
+=======
+        res.status(500).render('home.ejs', {
+            error: 'An error occurred. Try again!',
+            friendsFeed: [],
+            myReviews: []        // used to be `discover: []`
+        });
+    }
+});
+
+app.post('/reviews/delete', isLoggedIn, async (req, res) => {
+    const { reviewId } = req.body;
+    if (!reviewId) {
+        return res.redirect('/');
+    }
+
+    try {
+        await pool.query('DELETE FROM reviews WHERE id = ? AND User_id = ?',
+        [reviewId, req.session.user.id]);
+        res.redirect('/');
+    }
+    catch (err) {
+        console.error("Error deleting review:", err);
+        res.status(500).send("Error deleting review");
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     }
 });
 
@@ -161,6 +339,10 @@ app.get('/lyrics', async (req, res) => {
     try {
         let url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
         let response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`API returned status: ${response.status}`);
+        }
         let data = await response.json();
 
         // This would only run if the lyrics aren't found
@@ -235,6 +417,7 @@ app.get('/searching', async (req, res) => {
     //res.render('searching.ejs')
 });
 
+<<<<<<< HEAD
 
 
 app.get('/library', async (req, res) => {
@@ -246,6 +429,10 @@ app.get('/library', async (req, res) => {
     const [rows] = await pool.query(sql, [sqlParams]);
     //console.log(rows);
     res.render('library.ejs', { rows })
+=======
+app.get('/library', (req, res) => {
+    res.render('library.ejs')
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 });
 
 app.get('/adding', (req, res) => {
@@ -263,6 +450,7 @@ app.get('/profile', async (req, res) => {
     res.render('profile.ejs')
 });
 
+<<<<<<< HEAD
 app.post('/changePassword', async (req, res) => {
     const {cPassword, nPassword} = req.body;
     const userId = req.session.user.id;
@@ -310,12 +498,196 @@ app.post('/deleteAccount', async (req, res) => {
 
 app.get('/discover', (req, res) => {
     res.render('discover.ejs')
+=======
+app.get('/discover', async (req, res) => {
+    const genres = ['Pop', 'Rock', 'Metal', 'Rap', 'Electronic', 'Country', 'R&B', 'Jazz'];
+    const fetchGenre = async (genre) => {
+        try {
+            const url = "https://itunes.apple.com/search"
+            + "?term=" + encodeURIComponent(genre)
+            + "&media=music"
+            + "&entity=song"
+            + "&limit=50"
+            + "&country=US";
+            const response = await fetch(url);
+            const data = await response.json();
+            let songs = data.results || [];
+
+            for (let i = songs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [songs[i], songs[j]] = [songs[j], songs[i]];
+            }
+            return {
+                genre: genre,
+                songs: songs.slice(0, 10)
+            };
+        } catch (err) {
+            console.error(`Error fetching ${genre}:`, err);
+            return { genre: genre, songs: [] };
+        }
+    };
+
+    const discoverData = await Promise.all(genres.map(fetchGenre));
+    res.render('discover.ejs', {
+        discoverData,
+        user: req.session.user || null
+    });
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 });
 
 app.get('/deleting', (req, res) => {
     res.render('deleting.ejs')
 });
 
+<<<<<<< HEAD
 app.listen(3000, () => {
+=======
+//===========================FOLLOWS PAGE==================================
+app.get('/follows', async(req, res) => {
+    //if user not logged in and tries to access follows page
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const searchTerm = (req.query.q || '').trim();
+
+    try{
+        //people you follow
+        let sql = `SELECT u.id, u.username, f.created_at
+                    FROM follows f
+                    JOIN users u ON u.id = f.followed_id
+                    WHERE f.follower_id = ?
+                    ORDER BY u.username`;
+        const[following] = await pool.query(sql, [userId]);
+
+        //format dates for following
+        for (let i=0; i< following.length; i++){
+            const row = following[i];
+            let d;
+            if(row.created_at instanceof Date){
+                d= row.created_at;
+            } else {
+                d = new Date(row.created_at);
+            }
+
+            row.createdISO = d.toISOString();
+            row.createdHuman = d.toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        }
+
+        //people who follow YOU and whether you follow them back
+        let sql2 = `SELECT u.id, u.username, f.created_at,
+                    EXISTS(
+                        SELECT 1
+                        FROM follows f2
+                        WHERE f2.follower_id = ? AND f2.followed_id = u.id
+                        ) AS you_follow_them
+                    FROM follows f
+                    JOIN users u ON u.id = f.follower_id
+                    WHERE f.followed_id = ?
+                    ORDER BY u.username`;
+        const[followers] = await pool.query(sql2, [userId, userId]);
+
+        // ---- Format dates for followers ----
+        for (let i = 0; i < followers.length; i++) {
+        const row = followers[i];
+
+        let d;
+        if (row.created_at instanceof Date) {
+            d = row.created_at;
+        } else {
+            d = new Date(row.created_at);
+        }
+
+        row.createdISO = d.toISOString();
+        row.createdHuman = d.toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+        }
+
+        //search results
+        let searchResults = [];
+        if(searchTerm){
+            let sqlFindUser = `SELECT u.id, u.username,
+                                EXISTS(
+                                    SELECT 1
+                                    FROM follows f
+                                    WHERE f.follower_id = ? AND f.followed_id = u.id
+                                ) AS you_already_follow
+                                FROM users u
+                                WHERE u.username LIKE ? AND u.id != ?
+                                ORDER BY u.username
+                                LIMIT 20`;
+            
+            const[rows] = await pool.query(sqlFindUser, [userId, `%${searchTerm}%`, userId]);
+            searchResults = rows;
+        }
+
+        res.render('follows.ejs', {following, followers, searchResults, searchTerm});
+    } catch (err) {
+        console.error('Error loading follows page: ', err);
+        res.status(500).send('Error loading follows page');
+    }
+
+});
+
+//===========================FOLLOW SOMEONE ROUTE==========================
+app.post('/follows/add', async(req, res) => {
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const {targetId} = req.body;
+
+    if(!targetId || Number(targetId) === Number(userId)) {
+        return res.redirect('/follows');
+    }
+
+    try {
+        let sql = `INSERT IGNORE INTO follows (follower_id, followed_id, created_at)
+        VALUES (?, ?, NOW())`;
+
+        const[add] = await pool.query(sql, [userId, targetId]);
+        res.redirect('/follows');
+    } catch (err) {
+        console.error('Error following user: ', err);
+        res.status(500).send('Error following user');
+    }
+});
+
+//========================UNFOLLOW SOMEONE================================
+app.post('/follows/remove', async(req, res) => {
+    if(!req.session.user) {
+        return res.redirect('/auth/login');
+    }
+
+    const userId = req.session.user.id;
+    const {targetId} = req.body;
+
+    if(!targetId || Number(targetId) === Number(userId)) {
+        return res.redirect('/follows');
+    }
+
+    try {
+        let sql = `DELETE FROM follows
+                    WHERE follower_id = ? AND followed_id = ?`;
+        const[remove] = await pool.query(sql, [userId, targetId]);
+
+        res.redirect('/follows');
+    } catch (err) {
+        console.error('Error unfollowing user: ', err);
+        res.status(500).send('Error unfollowing user');
+
+    }
+
+});
+
+app.listen(3000, ()=> {
+>>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     console.log("Express server running")
 });
