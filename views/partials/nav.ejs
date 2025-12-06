@@ -9,28 +9,6 @@
       <span class="navbar-toggler-icon"></span>
     </button>
 
-<<<<<<< HEAD
-            <!-- right side links -->
-            <div class="col-auto">
-                <ul class="list-inline mb-0">
-                    <li class="list-inline-item"><a class="text-decoration-none" href="/discover">Discover</a></li>
-                    <li class="list-inline-itme"><a class="text-decoration-none" href="/lyrics">Lyrics</a></li>
-                    <% if (user) { %>
-                        <li class="list-inline-itme"><a class="text-decoration-none" href="/profile">Profile</a></li>
-                        <li class="list-inline-item"><a class="text-decoration-none" href="/library">Library</a></li>
-                        <li class="list-inline-item">
-                            <form action="/auth/logout" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-link p-0">Logout</button>
-                            </form>
-                        </li>
-                    <% } else { %>
-                            <li class="list-inline-item"><a class="text-decoration-none" href="/auth/login">Login</a></li>
-                            <li class="list-inline-item"><a class="text-decoration-none" href="/auth/signup">Sign Up</a></li>
-                        <% } %>
-                </ul>
-            </div>
-        </div>
-=======
     <!-- Collapsible area -->
     <div class="collapse navbar-collapse" id="mainNav">
 
@@ -49,6 +27,7 @@
 
         <% if (user) { %>
           <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
+          <li class="nav-item"><a class="nav-link" href="/library">Library</a></li>
           <li class="nav-item">
             <form action="/auth/logout" method="post" class="d-inline">
               <button type="submit" class="btn btn-link nav-link p-0 m-0 align-baseline">Logout</button>
@@ -59,7 +38,6 @@
           <li class="nav-item"><a class="nav-link" href="/auth/signup">Sign Up</a></li>
         <% } %>
       </ul>
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     </div>
   </div>
 </nav>

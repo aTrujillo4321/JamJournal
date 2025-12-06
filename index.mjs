@@ -39,18 +39,10 @@ const pool = mysql.createPool({
     waitForConnections: true
 });
 
-<<<<<<< HEAD
-//haven't implemented APIs for discover section 
-//haven't made friends section
-app.get('/', (req, res) => {
-    res.render('home.ejs', { friendsFeed: [], discover: [] });
-});
-=======
 //=============================== HOME ROUTE =============================
 app.get('/', async (req, res) => {
   let myReviews = [];
   let friendsFeed = [];
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 
   try {
     if (req.session.user) {
@@ -158,7 +150,7 @@ app.post('/auth/login', async (req, res) => {
 
     if (rows.length === 1) {
         req.session.user = rows[0]; //id, username, date_joined
-        
+        //console.log(rows[0]);
         return res.redirect('/');
     }
 
@@ -176,14 +168,9 @@ app.get('/auth/signup', (req, res) => {
     res.render('signup.ejs')
 });
 
-<<<<<<< HEAD
-app.post('/auth/signup', async (req, res) => {
-    const { username, password, confirmPass } = req.body;
-=======
 app.post('/auth/signup', async(req, res) => {
     const {username, password, confirmPass} = req.body;
     const FIRST_FRIEND = 1;
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 
     //check all fields filled
     if (!username || !password || !confirmPass) {
@@ -218,11 +205,7 @@ app.post('/auth/signup', async(req, res) => {
     const[friendBack] = await pool.query(sqlFriendBack, [FIRST_FRIEND, newUserId]);
 
     //automatically log in after sign up
-<<<<<<< HEAD
-    req.session.user = { id: result.insertId, username };
-=======
     req.session.user = {id: newUserId, username};
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     return res.redirect('/');
 });
 
@@ -269,11 +252,7 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
         let songId;
 
         if (existingSong.length === 0) {
-<<<<<<< HEAD
-            const [songInsert] = await conn.query('INSERT INTO songs (user_id, Title, Artist, Genre) VALUES (?, ?, ?, ?)', [userId, title, artist, genre || null]);
-=======
             const [songInsert] = await conn.query('INSERT INTO songs (Title, Artist, Genre, album_art_url, created_by) VALUES (?, ?, ?, ?, ?)', [title, artist, genre || null, albumArtUrl, userId]);
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
             songId = songInsert.insertId;
         }
         else {
@@ -295,9 +274,6 @@ app.post('/reviews', isLoggedIn, async (req, res) => {
     catch (err) {
         await conn.rollback();
         console.error("Error adding song or review:", err);
-<<<<<<< HEAD
-        res.status(500).render('home.ejs', { error: 'An error occurred. Try again!', friendsFeed: [], discover: [] });
-=======
         res.status(500).render('home.ejs', {
             error: 'An error occurred. Try again!',
             friendsFeed: [],
@@ -320,7 +296,6 @@ app.post('/reviews/delete', isLoggedIn, async (req, res) => {
     catch (err) {
         console.error("Error deleting review:", err);
         res.status(500).send("Error deleting review");
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     }
 });
 
@@ -417,7 +392,6 @@ app.get('/searching', async (req, res) => {
     //res.render('searching.ejs')
 });
 
-<<<<<<< HEAD
 
 
 app.get('/library', async (req, res) => {
@@ -429,10 +403,6 @@ app.get('/library', async (req, res) => {
     const [rows] = await pool.query(sql, [sqlParams]);
     //console.log(rows);
     res.render('library.ejs', { rows })
-=======
-app.get('/library', (req, res) => {
-    res.render('library.ejs')
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 });
 
 app.get('/adding', (req, res) => {
@@ -450,7 +420,6 @@ app.get('/profile', async (req, res) => {
     res.render('profile.ejs')
 });
 
-<<<<<<< HEAD
 app.post('/changePassword', async (req, res) => {
     const {cPassword, nPassword} = req.body;
     const userId = req.session.user.id;
@@ -498,50 +467,12 @@ app.post('/deleteAccount', async (req, res) => {
 
 app.get('/discover', (req, res) => {
     res.render('discover.ejs')
-=======
-app.get('/discover', async (req, res) => {
-    const genres = ['Pop', 'Rock', 'Metal', 'Rap', 'Electronic', 'Country', 'R&B', 'Jazz'];
-    const fetchGenre = async (genre) => {
-        try {
-            const url = "https://itunes.apple.com/search"
-            + "?term=" + encodeURIComponent(genre)
-            + "&media=music"
-            + "&entity=song"
-            + "&limit=50"
-            + "&country=US";
-            const response = await fetch(url);
-            const data = await response.json();
-            let songs = data.results || [];
-
-            for (let i = songs.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [songs[i], songs[j]] = [songs[j], songs[i]];
-            }
-            return {
-                genre: genre,
-                songs: songs.slice(0, 10)
-            };
-        } catch (err) {
-            console.error(`Error fetching ${genre}:`, err);
-            return { genre: genre, songs: [] };
-        }
-    };
-
-    const discoverData = await Promise.all(genres.map(fetchGenre));
-    res.render('discover.ejs', {
-        discoverData,
-        user: req.session.user || null
-    });
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
 });
 
 app.get('/deleting', (req, res) => {
     res.render('deleting.ejs')
 });
 
-<<<<<<< HEAD
-app.listen(3000, () => {
-=======
 //===========================FOLLOWS PAGE==================================
 app.get('/follows', async(req, res) => {
     //if user not logged in and tries to access follows page
@@ -688,6 +619,5 @@ app.post('/follows/remove', async(req, res) => {
 });
 
 app.listen(3000, ()=> {
->>>>>>> 81e6c9c0cab796bc190403be559ba86b51940cb1
     console.log("Express server running")
 });
