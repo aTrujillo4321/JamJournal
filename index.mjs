@@ -410,14 +410,24 @@ app.get('/adding', (req, res) => {
 });
 
 app.get('/profile', async (req, res) => {
-    // let sql = `SELECT *
-    //            FROM reviews
-    //            JOIN songs ON reviews.song_id = songs.id 
-    //            WHERE user_id LIKE ?`;
-    // let sqlParams = req.session.user.id;
-    // const [rows] = await pool.query(sql, [sqlParams]);
-    // console.log(rows);
-    res.render('profile.ejs')
+    if(!req.session.user){
+        return res.redirect('/auth/login');
+    }
+
+    //coopy session user so we can safely modify it
+    const user = { ...req.session.user };
+
+    //format date_joined
+    if(user.date_joined){
+        let d = (user.date_joined instanceof Date) 
+        ? user.date_joined : new Date(user.date_joined);
+
+        user.dateJoinedHuman = d.toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+    }
+    res.render('profile.ejs', {user})
 });
 
 app.post('/changePassword', async (req, res) => {
