@@ -1,6 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import mysql from 'mysql2/promise';
 import session from 'express-session';
+
+let LASTFM_API_KEY = '5b71336021631a4d9cbd981a09c5abfb';
 
 const app = express();
 app.set('view engine', 'ejs');
@@ -229,6 +232,61 @@ app.get('/searching', async(req, res) => {
         });
     }
     //res.render('searching.ejs')
+});
+
+app.get('/track/:artist/:title', async(req, res) => {
+    let artist = req.params.artist;
+    let title = req.params.title;
+
+    try{
+        let itunesUrl = 
+        "https://itunes.apple.com/search"
+            + "?term=" + encodeURIComponent(artist + " " + title)
+            + "&media=music"
+            + "&entity=song"
+            + "&limit=1";
+
+    let itunesRes = await fetch(itunesUrl);
+    let itunesData = await itunesRes.json();
+
+    let track = itunesData.results[0] || null;
+
+    let lastfmUrl =
+         "https://ws.audioscrobbler.com/2.0/"
+         + "?method=track.getInfo"
+         + "&artist=" + encodeURIComponent(artist)
+         + "&track=" + encodeURIComponent(title)
+         + "&api_key=" + process.env.LASTFM_API_KEY
+         + "&format=json";
+
+         let lastfmRes = await fetch(lastfmUrl);
+         let lastfmData = await lastfmRes.json();
+
+         let lastfm = lastfmData.track || null;
+
+         return res.render('track.ejs',{
+            artist,
+            title,
+            track,
+            lastfm,
+            error:null
+
+         });
+
+        
+    } catch (err){
+        console.error("Track details error:", err);
+
+        return res.render('track.ejs',{
+            artist,
+            title,
+            track:null,
+            lastfm:null,
+            error:"Error getting track details"
+        });
+
+    }
+
 });
 
 app.get('/library', (req, res) => {
