@@ -347,7 +347,6 @@ app.get('/searching', async(req, res) => {
             error: "Error getting search results from iTunes"
         });
     }
-    //res.render('searching.ejs')
 });
 
 app.get('/library', (req, res) => {
