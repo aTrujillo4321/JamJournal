@@ -299,19 +299,19 @@ app.post('/reviews/delete', isLoggedIn, async (req, res) => {
     }
 });
 
-app.get('/lyrics', async (req, res) => {
+app.get('/lyrics', async(req, res) => {
     let artist = req.query.artist;
     let title = req.query.title;
 
-    if (!artist || !title) {
-        return res.render('lyrics.ejs', {
-            artist: "",
-            title: "",
-            lyrics: null,
-            error: null
+    if(!artist || !title){
+        return res.render('lyrics.ejs',{
+            artist:"",
+            title:"",
+            lyrics:null,
+            error:null
         });
     }
-    try {
+    try{
         let url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
         let response = await fetch(url);
 
@@ -321,34 +321,34 @@ app.get('/lyrics', async (req, res) => {
         let data = await response.json();
 
         // This would only run if the lyrics aren't found
-        if (!data.lyrics) {
-            return res.render('lyrics.ejs', {
+        if(!data.lyrics){
+            return res.render('lyrics.ejs',{
                 artist,
                 title,
-                lyrics: null,
-                error: "Lyrics not found."
+                lyrics:null,
+                error:"Lyrics not found."
             });
         }
 
         // Successfully runs
-        return res.render('lyrics.ejs', {
+        return res.render('lyrics.ejs',{
             artist,
             title,
-            lyrics: data.lyrics,
-            error: null
+            lyrics:data.lyrics,
+            error:null
         });
 
-    } catch (err) {
-        console.error("Lyrics API Error:", err);
+    }catch(err){
+        console.error("Lyrics API Error:",err);
 
-        return res.render('lyrics.ejs', {
+        return res.render('lyrics.ejs',{
             artist,
             title,
-            lyrics: null,
-            error: "Error getting lyrics"
+            lyrics:null,
+            error:"Error getting lyrics"
         });
     }
-    // res.render('library.ejs')
+   // res.render('library.ejs')
 });
 
 app.get('/searching', async (req, res) => {
@@ -465,8 +465,40 @@ app.post('/deleteAccount', async (req, res) => {
     }
 });
 
-app.get('/discover', (req, res) => {
-    res.render('discover.ejs')
+
+app.get('/discover', async (req, res) => {
+    const genres = ['Pop', 'Rock', 'Metal', 'Rap', 'Electronic', 'Country', 'R&B', 'Jazz'];
+    const fetchGenre = async (genre) => {
+        try {
+            const url = "https://itunes.apple.com/search"
+            + "?term=" + encodeURIComponent(genre)
+            + "&media=music"
+            + "&entity=song"
+            + "&limit=50"
+            + "&country=US";
+            const response = await fetch(url);
+            const data = await response.json();
+            let songs = data.results || [];
+
+            for (let i = songs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [songs[i], songs[j]] = [songs[j], songs[i]];
+            }
+            return {
+                genre: genre,
+                songs: songs.slice(0, 10)
+            };
+        } catch (err) {
+            console.error(`Error fetching ${genre}:`, err);
+            return { genre: genre, songs: [] };
+        }
+    };
+
+    const discoverData = await Promise.all(genres.map(fetchGenre));
+    res.render('discover.ejs', {
+        discoverData,
+        user: req.session.user || null
+    });
 });
 
 app.get('/deleting', (req, res) => {
