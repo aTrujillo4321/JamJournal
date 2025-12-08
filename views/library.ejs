@@ -100,6 +100,17 @@
                         <span class="badge bg-primary-subtle text-primary">
                           <%= row.genre %>
                         </span>
+                        <button type="button" 
+                          class="btn btn-sm btn-outline-secondary edit-btn"
+                          data-bs-toggle="modal" 
+                          data-bs-target="#editReviewModal"
+                          data-review-id="<%= row.id %>" 
+                          data-song-id="<%= row.Song_id %>"
+                          data-title="<%= row.Title %>"
+                          data-rating="<%= row.Rating %>"
+                          data-genre="<%= row.Genre %>"
+                          data-comment="<%= row.Comment %>">
+                          Edit </button>
                       </div>
 
                       <% if (row.comment) { %>
@@ -123,6 +134,47 @@
 
       <% } %>
 
+      <div class="modal fade" id="editReviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="/reviews/update" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Review</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="reviewId" id="edit-review-id">
+                        <input type="hidden" name="songId" id="edit-song-id">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Song</label>
+                            <input type="text" class="form-control-plaintext" id="edit-title" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Genre</label>
+                            <input type="text" name="genre" id="edit-genre" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Rating (1-10)</label>
+                            <input type="number" name="rating" id="edit-rating" class="form-control" min="1" max="10" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Comment</label>
+                            <textarea name="comment" id="edit-comment" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     </main>
 
     <%- include('partials/footer') %>
@@ -132,6 +184,7 @@
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         const maxStars = 10;
+        const editButtons = document.querySelectorAll('.edit-btn');
 
         document.querySelectorAll('.rating-stars').forEach(function (el) {
           const ratingValue = parseInt(el.getAttribute('data-rating'), 10) || 0;
@@ -146,6 +199,24 @@
           }
 
           el.textContent = `Rating: ${stars} (${ratingValue}/10)`;
+        });
+
+        editButtons.forEach(btn => {
+          btn.addEventListener('click', () => {       
+            const reviewId = btn.getAttribute('data-review-id');
+            const songId = btn.getAttribute('data-song-id');
+            const title = btn.getAttribute('data-title');
+            const rating = btn.getAttribute('data-rating');
+            const genre = btn.getAttribute('data-genre');
+            const comment = btn.getAttribute('data-comment');
+
+            document.getElementById('edit-review-id').value = reviewId;
+            document.getElementById('edit-song-id').value = songId;
+            document.getElementById('edit-title').value = title;
+            document.getElementById('edit-rating').value = rating;
+            document.getElementById('edit-genre').value = genre;
+            document.getElementById('edit-comment').value = comment;
+          });
         });
       });
     </script>

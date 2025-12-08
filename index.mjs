@@ -300,6 +300,33 @@ app.post('/reviews/delete', isLoggedIn, async (req, res) => {
     }
 });
 
+app.post('/reviews/update', isLoggedIn, async (req, res) => {
+    const { reviewId, songId, rating, comment, genre } = req.body;
+    const userId = req.session.user.id;
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        await conn.query(`UPDATE reviews SET Rating = ?, Comment = ?, Date_reviewed = NOW() WHERE id = ? AND User_id = ?`,
+            [rating, comment, reviewId, userId]);
+
+        if (genre && songId) {
+            await conn.query(
+                `UPDATE songs SET Genre = ? WHERE id = ?`,
+                [genre, songId]
+            );
+        }
+        await conn.commit();
+        res.redirect('/library');
+    } 
+    catch (err) {
+        await conn.rollback();
+        console.error("Error updating review:", err);
+        res.status(500).send("Error updating review");
+    }
+});
+
 app.get('/lyrics', async(req, res) => {
     let artist = req.query.artist;
     let title = req.query.title;
@@ -447,8 +474,6 @@ app.get('/track/:artist/:title', async(req, res) => {
 
 });
 
-
-
 app.get('/library', async (req, res) => {
 
     if(!req.session.user){
@@ -463,10 +488,6 @@ app.get('/library', async (req, res) => {
     const [rows] = await pool.query(sql, [sqlParams]);
     //console.log(rows);
     res.render('library.ejs', { rows })
-});
-
-app.get('/adding', (req, res) => {
-    res.render('adding.ejs')
 });
 
 app.get('/profile', async (req, res) => {
@@ -569,10 +590,6 @@ app.get('/discover', async (req, res) => {
         discoverData,
         user: req.session.user || null
     });
-});
-
-app.get('/deleting', (req, res) => {
-    res.render('deleting.ejs')
 });
 
 //===========================FOLLOWS PAGE==================================

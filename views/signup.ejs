@@ -16,23 +16,83 @@
         <div class="alert alert-danger"><%= error %></div>
     <% } %>
 
-    <form method="post" action="/auth/signup" class="row g-3" autocomplete="off">
+    <form method="post" action="/auth/signup" class="row g-3" autocomplete="off" id="signupForm">
         <div class="col-12 col-md-6">
             <label class="form-label">Username</label>
-            <input name="username" class="form-control" required />
+            <input name="username" id="username" class="form-control" required />
         </div>
+        
         <div class="col-12 col-md-6">
             <label class="form-label">Password</label>
-            <input name="password" type="password" class="form-control" required minlength="6" />
+            <input name="password" id="password" type="password" class="form-control" required minlength="6" />
+            <div id="passwordHelp" class="form-text text-muted">Must be at least 6 characters.</div>
         </div>
+        
         <div class="col-12 col-md-6">
             <label class="form-label">Confirm Password</label>
-            <input name="confirmPass" type="password" class="form-control" required minlength="6" />
+            <input name="confirmPass" id="confirmPass" type="password" class="form-control" required minlength="6" />
+            <div id="matchFeedback" class="small fw-bold mt-1"></div>
         </div>
+        
         <div class="col-12">
-            <button class="btn btn-primary">Sign Up</button>
+            <button id="submitBtn" class="btn btn-primary" disabled>Sign Up</button>
             <a class="btn btn-link" href="/auth/login">Already have an account?</a>
         </div>
     </form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordInput = document.getElementById('password');
+        const confirmInput = document.getElementById('confirmPass');
+        const feedbackDiv = document.getElementById('matchFeedback');
+        const submitBtn = document.getElementById('submitBtn');
+        const helpText = document.getElementById('passwordHelp');
+
+        function validateForm() {
+            const pass = passwordInput.value;
+            const confirm = confirmInput.value;
+            let isValid = false;
+
+            feedbackDiv.classList.remove('text-success', 'text-danger');
+            passwordInput.classList.remove('is-valid', 'is-invalid');
+            confirmInput.classList.remove('is-valid', 'is-invalid');
+
+            if (pass.length < 6) {
+                helpText.classList.add('text-danger');
+                helpText.textContent = `Password is too short (${pass.length}/6)`;
+                submitBtn.disabled = true;
+                return;
+
+            } else {
+                helpText.classList.remove('text-danger');
+                helpText.classList.add('text-success');
+                helpText.textContent = 'Password length is good.';
+            }
+
+            if (pass !== confirm) {
+                feedbackDiv.textContent = "Passwords do not match yet...";
+                feedbackDiv.classList.add('text-danger');
+                confirmInput.classList.add('is-invalid');
+                isValid = false;
+            } 
+            
+            else if (pass === confirm && pass.length >= 6) {
+                feedbackDiv.textContent = "Passwords match!";
+                feedbackDiv.classList.add('text-success');
+                confirmInput.classList.remove('is-invalid');
+                confirmInput.classList.add('is-valid');
+                isValid = true;
+            }
+
+            if (isValid) {
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.disabled = true;
+            }
+        }
+        passwordInput.addEventListener('input', validateForm);
+        confirmInput.addEventListener('input', validateForm);
+    });
+</script>
 </body>
 </html>
