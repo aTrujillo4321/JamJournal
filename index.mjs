@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
     session({
-        secret: 'dev-secret-change-me',   // TODO: move to env var in prod
+        secret: process.env.SESSION_SECRET || 'dev-secret-change-me',  // TODO: move to env var in prod
         resave: false,
         saveUninitialized: false,
         cookie: { maxAge: 1000 * 60 * 60 * 8 }, // 8h
@@ -32,10 +32,11 @@ const isLoggedIn = (req, res, next) => {
 
 //log into PHP to see database with these credentials
 const pool = mysql.createPool({
-    host: "s54ham9zz83czkff.cbetxkdyhwsb.us-east-1.rds.amazonaws.com",
-    user: "aly2chc1emeviz7l",
-    password: "k0jghsw8hzro9yz4",
-    database: "zhxbq00kjl80ezxz",
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
     connectionLimit: 10,
     waitForConnections: true
 });
@@ -737,6 +738,6 @@ app.post('/follows/remove', async(req, res) => {
 
 });
 
-app.listen(3000, ()=> {
-    console.log("Express server running")
+app.listen(process.env.PORT || 3000, () => {
+    console.log("Express server running");
 });
